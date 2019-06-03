@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import csv
+import matplotlib.pyplot as plt
 
 #location = "/home/frederik/Documents/Data GOA/hln_comments.csv"
 
@@ -24,3 +25,12 @@ x = pd.DataFrame(dat)
 x.columns = x.iloc[0]
 x = x[1:]
 x.gigya_id.nunique() #number of unique users
+
+empty = []
+
+for index, i in enumerate(x.url):
+    if len(i) == 0:
+        empty.append(i)
+
+number_of_ids_per_article = x.article_id.value_counts()
+number_of_comments_per_user = x.gigya_id.value_counts()
