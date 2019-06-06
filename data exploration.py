@@ -13,13 +13,19 @@ import nltk
 import string
 from wordcloud import WordCloud, STOPWORDS
 import re
+import sys
 
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.snowball import SnowballStemmer
-
 from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from catboost import Pool, CatBoostRegressor, cv
+
+
+#setting some options for pandas
+pd.set_option('display.max_columns', 20)
+pd.set_option('display.width', 500)
+
 
 
 #starting up jupyter notebook
@@ -27,32 +33,14 @@ from catboost import Pool, CatBoostRegressor, cv
 
 
 # encoding=utf8
-import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 
-#custom functions
-def replaceMultiple(mainString, toBeReplaces, newString):
-    # Iterate over the strings to be replaced
-    for elem in toBeReplaces:
-        # Check if string is in the main string
-        if elem in mainString:
-            # Replace the string
-            mainString = mainString.replace(elem, newString)
-    return mainString
-
-
-
-
-
-
 #### full data
-
 location = "hln_articles.csv"
-#utf-8-sig
 dat2 = []
-with open(location) as csv_file:
+with codecs.open(location, 'r', 'utf-8') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
         if len(row) == 10:
@@ -62,40 +50,22 @@ with open(location) as csv_file:
 
 cols = dat2[0]
 dat2.pop(0)
-
-'''
-dtypes = {
-"shortId":"object",
-"section":"object",
-"articleType":"object",
-"url":"object",
-"author":"object",
-"published":"object",
-"time":"object",
-"views":"object",
-"shares":"object",
-"text":"object"
-}
-'''
-
-
 p = pd.DataFrame(dat2)
 p.columns = cols
 
-p.views=p.views.astype("int64")
-p.shares=p.shares.astype("int64")
-p.time=p.time.astype("int64")
-
+#p.views=p.views.astype("int64")
+#p.shares=p.shares.astype("int64")
+#p.time=p.time.astype("int64")
 
 
 t2 = list(p.text)
-to_replace = dict({'\\\\\\"':' ', '\\"': '"', 'u0027': '', 'u0026' : '', 'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e', '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : ' ',
+to_replace = dict({'\\\\\\"':' ', '\\"': '"', 'u0027': ' ', 'u0026' : '', 'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e', '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
                    '\xe2\x80\x9c':' ', '\xe2\x80\x98' : ' ', '\u2019': ' ', '\u2018' : ' ', '\xc3\xaa' : 'e', '\xc3\xa8' : 'e', '\xc3\xbc':'u', '""' : '"',
-                   '\xc2\xa0' : ' ', '\\rawText':'rawText'})
+                   '\xc2\xa0' : ' ', '\\rawText':'rawText', '?' : ' ?', '!' : ' !', '\\\\r\\\\n': ' '})
 for key, value in to_replace.items():
     t2 = [i.replace(key, value) for i in t2]
 
-pprint.pprint(t2[0])
+print(t2[76])
 
 
 title = []
@@ -120,9 +90,12 @@ p['intro'] = header
 
 title_backup = title
 
-title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z]',' ', elem))
+
+#this needs to be better: we also want to keep ! and ?
+title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
 title = pd.Series([i.__str__().lower() for i in title])
 
+#eventueel nog named entities uit halen
 
 tokenizer = RegexpTokenizer(r'\w+')
 words_descriptions = title.apply(tokenizer.tokenize)
