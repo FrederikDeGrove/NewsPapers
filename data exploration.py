@@ -18,7 +18,7 @@ import sys
 
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.snowball import SnowballStemmer
-from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from catboost import Pool, CatBoostRegressor, cv
 
@@ -34,7 +34,7 @@ pd.set_option('display.width', 500)
 
 # encoding=utf8
 reload(sys)
-sys.setdefaultencoding('utf8')
+#sys.setdefaultencoding('utf8')
 
 
 #### full data
@@ -53,7 +53,7 @@ dat2.pop(0)
 p = pd.DataFrame(dat2)
 p.columns = cols
 
-#p.views=p.views.astype("int64")
+p.views=p.views.astype("int64")
 #p.shares=p.shares.astype("int64")
 #p.time=p.time.astype("int64")
 
@@ -126,6 +126,12 @@ hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
 hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
 hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
 
+p['hasNamedEntity'] =hasNamedEntity
+p['hasNumbers'] = hasNumbers
+p['hasSubTitle'] = hasSubTitle
+
+
+
 title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
 title = pd.Series([i.__str__().lower() for i in title]) # do this after we checked for named entities
 
@@ -154,6 +160,8 @@ words_descriptions = words_descriptions.apply(lambda elem: [word for word in ele
 #words_descriptions = words_descriptions.apply(lambda elem: [stemmer.stem(word) for word in elem])
 new_titles = words_descriptions.apply(lambda elem: ' '.join(elem))
 
+newtitles = [remove_words_of_length(i, length= 1) for i in new_titles]
+p['new_titles'] = new_titles
 
 all_words = [word for tokens in words_descriptions for word in tokens]
 VOCAB = sorted(list(set(all_words)))
@@ -165,6 +173,12 @@ pprint.pprint(count_all_words.most_common(50))
 sentiment
 '''
 
+# STILL NEED TO CHECK FOR DOUBLES _ AND THEY ARE THERE FOR SURE
+len(p) - p.new_titles.nunique()   #5515 titles are the same
+
+# LETS WRITE DATASET HERE SO WE DON'T NEED TO DO ALL TRANSFORMATIONS OVER AND OVER AGAIN
+all_data = p[['views', 'new_titles', 'hasNamedEntity', 'hasNumbers', 'hasSubTitle']]
+all_data.to_csv("test.csv")
 
 '''
 
@@ -203,7 +217,7 @@ model = CatBoostRegressor(
     #task_type = "GPU",
     learning_rate= .01,
     random_seed=100,
-    loss_function='MAE',
+    loss_function=['MAE', 'RMSE'],
     iterations=10000,
 )
 
