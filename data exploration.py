@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 import nltk
 import string
 from wordcloud import WordCloud, STOPWORDS
+from importlib import reload
 import re
 import sys
 
@@ -20,7 +21,6 @@ from nltk.stem.snowball import SnowballStemmer
 from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from catboost import Pool, CatBoostRegressor, cv
-
 
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
@@ -59,18 +59,23 @@ p.columns = cols
 
 
 t2 = list(p.text)
+
+
 to_replace = dict({'\\\\\\"':' ', '\\"': '"', 'u0027': ' ', 'u0026' : '', 'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e', '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
                    '\xe2\x80\x9c':' ', '\xe2\x80\x98' : ' ', '\u2019': ' ', '\u2018' : ' ', '\xc3\xaa' : 'e', '\xc3\xa8' : 'e', '\xc3\xbc':'u', '""' : '"',
                    '\xc2\xa0' : ' ', '\\rawText':'rawText', '?' : ' ?', '!' : ' !', '\\\\r\\\\n': ' '})
 for key, value in to_replace.items():
     t2 = [i.replace(key, value) for i in t2]
 
-print(t2[76])
+t2 = [i.replace('rawText":","textType' , 'rawText":" ","textType') for i in t2]
+
+print(t2[2181])
 
 
 title = []
 header = []
-for t_ in t2:
+subtitle= []
+for index, t_ in enumerate(t2):
     #r = t_.decode('unicode-escape')
     k = list(t_)
     k.insert(2, '"')
@@ -84,18 +89,48 @@ for t_ in t2:
         header.append(1)
     else:
         header.append(0)
+    if "SUBTITLE" in set(u):
+        subtitle.append(pd.DataFrame(f).rawText[1])
+    else:
+        subtitle.append(" ")
 
-p['title'] = title
-p['intro'] = header
 
 title_backup = title
 
+###creating other variables
 
-#this needs to be better: we also want to keep ! and ?
+def countUpper(text):
+    return sum(1 for c in text if c.isupper())
+
+def hasDigits(text):
+    return sum(1 for i in list(text) if i.isdigit())
+
+
+def remove_words_of_length(dat, length=2):
+    to_pop = []
+    for word in dat.split(" "):
+        if len(word) <= length and word.isalpha() and hasDigits(word) < 1:
+            to_pop.append(word)
+    words = [i for i in dat.split(" ") if i not in to_pop]
+    return ' '.join(words)
+
+title= [remove_words_of_length(i, length= 1) for i in title]
+
+
+p['title'] = title
+p['intro'] = header
+p['subtitle'] = subtitle
+
+
+hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
+hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
+hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
+
 title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
-title = pd.Series([i.__str__().lower() for i in title])
+title = pd.Series([i.__str__().lower() for i in title]) # do this after we checked for named entities
 
-#eventueel nog named entities uit halen
+empty = [index for index, i in enumerate(title) if i == ' '] #best to drop this?
+
 
 tokenizer = RegexpTokenizer(r'\w+')
 words_descriptions = title.apply(tokenizer.tokenize)
@@ -110,9 +145,9 @@ print("%s words total, with a vocabulary size of %s" % (len(all_words), len(VOCA
 
 from collections import Counter
 count_all_words = Counter(all_words)
-count_all_words.most_common(100)
+pprint.pprint(count_all_words.most_common(50))
 
-
+# nltk.download('stopwords')
 stopword_list = stopwords.words('dutch')
 #stemmer = SnowballStemmer("dutch")
 words_descriptions = words_descriptions.apply(lambda elem: [word for word in elem if not word in stopword_list])
@@ -124,10 +159,11 @@ all_words = [word for tokens in words_descriptions for word in tokens]
 VOCAB = sorted(list(set(all_words)))
 print("%s words total, with a vocabulary size of %s" % (len(all_words), len(VOCAB)))
 count_all_words = Counter(all_words)
-pprint.pprint(count_all_words.most_common(100))
+pprint.pprint(count_all_words.most_common(50))
 
-
-#remove words that are less than 3 letters and that are a-z
+'''
+sentiment
+'''
 
 
 '''
@@ -139,9 +175,9 @@ pprint.pprint(count_all_words.most_common(100))
 
 '''
 # BAG OF WORDS
-#vectorizer= CountVectorizer(analyzer='word', token_pattern=r'\w+',max_features=1000)
+vectorizer= CountVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
 # TF-IDF
-vectorizer= TfidfVectorizer(analyzer='word', token_pattern=r'\w+',max_features=1000)
+vectorizer= TfidfVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
 
 # set data right
 X = vectorizer.fit_transform(new_titles).toarray()
@@ -152,19 +188,22 @@ y = p.views
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=123)
 
 #standardize dependent
+'''
 mean_training = y_train.mean()
 sd_training = y_train.std()
-
 y_train_S = (y_train - mean_training) / sd_training
+'''
+
 
 # model definintion and training.
 
+#ideally, we have a loss function that punishes more for underestimation than overestimation(??)
 
 model = CatBoostRegressor(
-    task_type = "GPU",
+    #task_type = "GPU",
     learning_rate= .01,
     random_seed=100,
-    loss_function='Poisson',
+    loss_function='MAE',
     iterations=10000,
 )
 
