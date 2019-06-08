@@ -4,45 +4,64 @@ import csv
 import matplotlib.pyplot as plt
 import json
 import codecs
-import unicodedata
-from io import open
 from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
-from sklearn.feature_extraction.text import CountVectorizer
-import nltk
 import string
-from wordcloud import WordCloud, STOPWORDS
-from importlib import reload
 import re
 import sys
-
+import copy
+import pprint
+from collections import Counter
 from nltk.tokenize import RegexpTokenizer
-from nltk.stem.snowball import SnowballStemmer
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.model_selection import train_test_split
-from catboost import Pool, CatBoostRegressor, cv
-
+#### PATTERN
+import pattern
+from pattern.nl import parse, split
+from pattern.nl import sentiment
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
 
-
 #starting up jupyter notebook
 #jupyter notebook
-
-
 # encoding=utf8
 reload(sys)
-#sys.setdefaultencoding('utf8')
+sys.setdefaultencoding('utf8')
 
 
-#### full data
+
+###########################################################
+###########################################################
+################    CUSTOM FUNCTIONS  #####################
+###########################################################
+###########################################################
+
+def countUpper(text):
+    return sum(1 for c in text if c.isupper())
+
+def hasDigits(text):
+    return sum(1 for i in list(text) if i.isdigit())
+
+def remove_words_of_length(dat, length=2):
+    to_pop = []
+    for word in dat.split(" "):
+        if len(word) <= length and word.isalpha() and hasDigits(word) < 1:
+            to_pop.append(word)
+    words = [i for i in dat.split(" ") if i not in to_pop]
+    return ' '.join(words)
+
+
+###########################################################
+###########################################################
+###################    READING DATA   #####################
+###########################################################
+###########################################################
+
 location = "hln_articles.csv"
 dat2 = []
-with codecs.open(location, 'r', 'utf-8') as csv_file:
+with open(location) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
+        row = [s.encode("utf-8") for s in row]
         if len(row) == 10:
             dat2.append(row)
         else:
@@ -52,31 +71,40 @@ cols = dat2[0]
 dat2.pop(0)
 p = pd.DataFrame(dat2)
 p.columns = cols
-
 p.views=p.views.astype("int64")
-#p.shares=p.shares.astype("int64")
-#p.time=p.time.astype("int64")
+p.shares=p.shares.astype("int64")
+p.time=p.time.astype("int64")
 
+###########################################################
+###########################################################
+################### TEXT MANIPULATION #####################
+###########################################################
+###########################################################
 
 t2 = list(p.text)
+to_replace = dict({'\\\\\\"': ' ', '\\"': '"', 'u0027': ' ', 'u0026' : '',
+                   'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e',
+                   '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
+                   '\xe2\x80\x9c': ' ', '\xe2\x80\x98' : ' ', '\u2019': ' ',
+                   '\u2018': ' ', '\xc3\xaa' : 'e', '\xc3\xa8' : 'e',
+                   '\xc3\xbc': 'u', '""' : '"',
+                   '\xc2\xa0': ' ', '\\rawText': 'rawText', '?': ' ?',
+                   '!': ' !', '\\\\r\\\\n': ' '})
 
-
-to_replace = dict({'\\\\\\"':' ', '\\"': '"', 'u0027': ' ', 'u0026' : '', 'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e', '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
-                   '\xe2\x80\x9c':' ', '\xe2\x80\x98' : ' ', '\u2019': ' ', '\u2018' : ' ', '\xc3\xaa' : 'e', '\xc3\xa8' : 'e', '\xc3\xbc':'u', '""' : '"',
-                   '\xc2\xa0' : ' ', '\\rawText':'rawText', '?' : ' ?', '!' : ' !', '\\\\r\\\\n': ' '})
 for key, value in to_replace.items():
     t2 = [i.replace(key, value) for i in t2]
 
-t2 = [i.replace('rawText":","textType' , 'rawText":" ","textType') for i in t2]
+t2 = [i.replace('rawText":","textType', 'rawText":" ","textType') for i in t2]
+
 
 print(t2[2181])
-
 
 title = []
 header = []
 subtitle= []
+
 for index, t_ in enumerate(t2):
-    #r = t_.decode('unicode-escape')
+    r = t_.decode('unicode-escape')
     k = list(t_)
     k.insert(2, '"')
     m = ''.join(k)
@@ -94,33 +122,13 @@ for index, t_ in enumerate(t2):
     else:
         subtitle.append(" ")
 
+title_backup = copy.deepcopy(title)
 
-title_backup = title
-
-###creating other variables
-
-def countUpper(text):
-    return sum(1 for c in text if c.isupper())
-
-def hasDigits(text):
-    return sum(1 for i in list(text) if i.isdigit())
-
-
-def remove_words_of_length(dat, length=2):
-    to_pop = []
-    for word in dat.split(" "):
-        if len(word) <= length and word.isalpha() and hasDigits(word) < 1:
-            to_pop.append(word)
-    words = [i for i in dat.split(" ") if i not in to_pop]
-    return ' '.join(words)
-
-title= [remove_words_of_length(i, length= 1) for i in title]
-
+title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER DAN 2 CHARACTERS
 
 p['title'] = title
 p['intro'] = header
 p['subtitle'] = subtitle
-
 
 hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
 hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
@@ -131,11 +139,36 @@ p['hasNumbers'] = hasNumbers
 p['hasSubTitle'] = hasSubTitle
 
 
+#perform sentiment analysis
+sentiment_score = [sentiment(i) for i in title]
+polarity = [i[0] for i in sentiment_score]
+subjectivity = [i[1] for i in sentiment_score]
 
+#polarity = [0 if i < 0 else 1 for i in polarity]
+#subjectivity = [0 if i < 0 else 1 for i in subjectivity]
+
+p['polarity'] = polarity
+p['subjectivity'] = subjectivity
+
+
+#lemmatizing
+
+new_title = []
+for title_ in title:
+    t = parse(title_, lemmata=True)
+    g = pattern.text.Sentence(t)
+    new_title.append(' '.join(g.lemmata))
+
+title = new_title
+
+#remove anything that is not a letter, number or ! or ?
 title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
-title = pd.Series([i.__str__().lower() for i in title]) # do this after we checked for named entities
 
-empty = [index for index, i in enumerate(title) if i == ' '] #best to drop this?
+#lower() should be covered by parsing en lemmatizing
+#title = pd.Series([i.__str__().lower() for i in title]) # do this after we checked for named entities
+
+empty = [index for index, i in enumerate(title) if i == ' ']
+print(empty)
 
 
 tokenizer = RegexpTokenizer(r'\w+')
@@ -143,70 +176,77 @@ words_descriptions = title.apply(tokenizer.tokenize)
 words_descriptions.head()
 
 
-all_words = [word for tokens in words_descriptions for word in tokens]
-title_lengths = [len(tokens) for tokens in words_descriptions]
-VOCAB = sorted(list(set(all_words)))
-print("%s words total, with a vocabulary size of %s" % (len(all_words), len(VOCAB)))
-
-
-from collections import Counter
-count_all_words = Counter(all_words)
-pprint.pprint(count_all_words.most_common(50))
+title = None
 
 # nltk.download('stopwords')
 stopword_list = stopwords.words('dutch')
-#stemmer = SnowballStemmer("dutch")
 words_descriptions = words_descriptions.apply(lambda elem: [word for word in elem if not word in stopword_list])
-#words_descriptions = words_descriptions.apply(lambda elem: [stemmer.stem(word) for word in elem])
 new_titles = words_descriptions.apply(lambda elem: ' '.join(elem))
-
-newtitles = [remove_words_of_length(i, length= 1) for i in new_titles]
-p['new_titles'] = new_titles
+title = [remove_words_of_length(i, length=1) for i in new_titles]
+p['title'] = title
 
 all_words = [word for tokens in words_descriptions for word in tokens]
+title_lengths = [len(tokens) for tokens in words_descriptions]
+p['title_lengths'] = title_lengths
+#add variable with number of words in title - maybe before all text manipulations....
+
+
 VOCAB = sorted(list(set(all_words)))
 print("%s words total, with a vocabulary size of %s" % (len(all_words), len(VOCAB)))
 count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
 
+# remmove duplicates
+len(p) - p.title.nunique()   #5515 titles are the same
+temp = copy.deepcopy(p)
+p.drop_duplicates(subset=['title'], keep='last', inplace=True)
+
+# write away final data table to be used for analyses
+all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'polarity', 'subjectivity', 'title_lengths']]
+all_data.to_csv("HLN_ML_data.csv")
+
+
+
+
+
+
+
+
+
+
 '''
-sentiment
-'''
-
-# STILL NEED TO CHECK FOR DOUBLES _ AND THEY ARE THERE FOR SURE
-len(p) - p.new_titles.nunique()   #5515 titles are the same
-
-# LETS WRITE DATASET HERE SO WE DON'T NEED TO DO ALL TRANSFORMATIONS OVER AND OVER AGAIN
-all_data = p[['views', 'new_titles', 'hasNamedEntity', 'hasNumbers', 'hasSubTitle']]
-all_data.to_csv("test.csv")
-
-'''
-
-    Bag of Words Counts - embeds each sentences as a list of 0 or 1, 1 represent containing word.
-    TF-IDF (Term Frequency, Inverse Document Frequency) - weighing words by how frequent they are in our dataset, discounting words that are too frequent.
-    Word2Vec - Capturing semantic meaning. We won't use it in this kernel.
+X = vectorizer.fit_transform(p['title']).toarray()
+X = pd.DataFrame(X)
+y = p.views
+#split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=123)
 
 
-'''
+
+
+
+    BOOSTING
+    Bag of Words Counts (embeds each sentences as a list of 0 or 1, 1 represent containing word)
+    TF-IDF (Term Frequency, Inverse Document Frequency) (weighing words by how frequent they are in our dataset, discounting words that are too frequent)
+
+
+
 # BAG OF WORDS
 vectorizer= CountVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
 # TF-IDF
 vectorizer= TfidfVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
 
-# set data right
-X = vectorizer.fit_transform(new_titles).toarray()
-X=pd.DataFrame(X)
-y = p.views
 
-#split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=123)
+#standardize polarity, subjectivity, title_lengths
 
-#standardize dependent
-'''
-mean_training = y_train.mean()
-sd_training = y_train.std()
-y_train_S = (y_train - mean_training) / sd_training
-'''
+
+
+#categorize hasNumbers and  hasNamedEntity
+
+
+
+
+
 
 
 # model definintion and training.
@@ -273,7 +313,7 @@ for index, i in enumerate(dat2):
         else:
             print(index)
 
-
+'''
 
 
 
