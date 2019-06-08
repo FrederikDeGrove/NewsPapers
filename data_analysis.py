@@ -11,6 +11,7 @@ import numpy as np
 from sklearn import metrics
 import xgboost
 from catboost import CatBoostRegressor
+from sklearn.model_selection import GridSearchCV
 
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
@@ -88,7 +89,7 @@ max_words = 10000
 
 text = Pipeline([
                 ('selector', TextSelector(key='title')),
-                ('vectorizer', CountVectorizer(analyzer = "word", max_features= 1000))
+                ('vectorizer', TfidfVectorizer(analyzer = "word"))
             ])
 #text.fit_transform(X_train)
 
@@ -164,6 +165,8 @@ pipeline2 = Pipeline([
                 ('classifier', XGBClassifier())
             ])
 
+pipeline2.get_params().keys() #variables to tweak
+
 #import joblib
 #y_train_dich2 = joblib.dump(y_train_dich, 'binary_target.joblib')
 
@@ -175,6 +178,20 @@ from sklearn.metrics import average_precision_score
 print(metrics.balanced_accuracy_score(y_test_dich, preds))
 print(metrics.average_precision_score(y_test_dich, preds))
 print(metrics.f1_score(y_test_dich, preds))
+
+
+hyperparameters = {'features__text__vectorizer__max_features' : [10,100,1000,5000,10000],
+                   'features__text__vectorizer__max_df': [0.85, 0.9],
+                   #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
+                   'classifier__max_depth': [70, 90]
+                   #'classifier__min_samples_leaf': [1,2]
+                  }
+clf = GridSearchCV(pipeline2, hyperparameters, cv=5)
+
+clf.fit(X_train, y_train_dich)
+
+
+clf.best_params_
 
 
 '''
