@@ -1,7 +1,5 @@
 import pandas as pd
-import numpy as np
 import csv
-import matplotlib.pyplot as plt
 import json
 import codecs
 from nltk.corpus import stopwords
@@ -12,10 +10,10 @@ import copy
 import pprint
 from collections import Counter
 from nltk.tokenize import RegexpTokenizer
-#### PATTERN
 import pattern
 from pattern.nl import parse, split
 from pattern.nl import sentiment
+
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
@@ -24,8 +22,8 @@ pd.set_option('display.width', 500)
 #starting up jupyter notebook
 #jupyter notebook
 # encoding=utf8
-reload(sys)
-sys.setdefaultencoding('utf8')
+#reload(sys)
+#sys.setdefaultencoding('utf8')
 
 
 
