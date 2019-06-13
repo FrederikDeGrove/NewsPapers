@@ -73,8 +73,14 @@ def removeStopWords(text, stopword_list):
 ###########################################################
 ###########################################################
 
-#location = "hln_articles.csv"
-location = "hln_data_final.csv"
+newspaper = "DM"
+
+if newspaper == "DM":
+    location = "dm_data_final.csv"
+else:
+    location = "hln_data_final.csv"
+
+
 dat = []
 with open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
@@ -180,13 +186,19 @@ print("%s words total, with a vocabulary size of %s" % (len(all_words), len(uniq
 count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
 
-
-
 # write away final data table to be used for analyses
 all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'polarity', 'subjectivity', 'title_lengths']]
-all_data.to_csv("HLN_ML_data_final.csv")
-s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
-s.columns = ['word', 'counts']
-s.to_csv("all_words_counts.csv")
+
+
+if newspaper == "DM":
+    all_data.to_csv("DM_ML_data_final.csv")
+    s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+    s.columns = ['word', 'counts']
+    s.to_csv("all_words_counts_DM.csv")
+else:
+    all_data.to_csv("HLN_ML_data_final.csv")
+    s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+    s.columns = ['word', 'counts']
+    s.to_csv("all_words_counts_HLN.csv")
 
 

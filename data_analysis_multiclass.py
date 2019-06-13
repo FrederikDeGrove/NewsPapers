@@ -51,8 +51,6 @@ dat.title_lengths = dat.title_lengths.astype("float64")
 ###########################################################
 ###########################################################
 
-###define cutoff
-cutoff = dat.views.median()
 
 #preparing data
 
@@ -63,12 +61,31 @@ target = 'views'
 X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
 X_train.head()
 
-y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
-y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
+y_train_dich = [0 if i <= 1000 else 1 for i in y_train]
+y_test_dich = [0 if i <= 1000 else 1 for i in y_test]
 
-#y_train_log = np.log(y_train)
-#y_test_log = np.log(y_test)
+y_train_multi = list()
+for i in y_train:
+    if i == 0:
+        y_train_multi.append(0)
+    elif i <= 1000:
+        y_train_multi.append(1)
+    else:
+        y_train_multi.append(2)
 
+y_train_m = xgboost.DMatrix(y_train_multi)
+
+
+y_test_multi = list()
+for i in y_test:
+    if i == 0:
+        y_test_multi.append(0)
+    elif i <= 1000:
+        y_test_multi.append(1)
+    else:
+        y_test_multi.append(2)
+
+y_test_m = xgboost.DMatrix(y_test_multi)
 
 
 # from https://www.kaggle.com/baghern/a-deep-dive-into-sklearn-pipelines
@@ -103,11 +120,11 @@ class NumberSelector(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return X[[self.key]]
 
-CountVectorizer
+
 
 text = Pipeline([
                 ('selector', TextSelector(key='title')),
-                ('vectorizer', CountVectorizer(analyzer ="word"))
+                ('vectorizer', TfidfVectorizer(analyzer ="word"))
             ])
 #text.fit_transform(X_train)
 
@@ -158,108 +175,18 @@ feature_processing = Pipeline([('feats', feats)])
 
 pipeline = Pipeline([
                 ('features',feats),
-                ('classifier', XGBClassifier(objective='binary:logistic', booster='gbtree'))
+                ('classifier', XGBClassifier(objective='multi:softprob', booster='gbtree', num_class = 3))
             ])
 
-#pipeline.get_params().keys() #variables to tweak
-
-pipeline.fit(X_train, y_train_dich)
+pipeline.fit(X_train, y_train_multi)
 preds = pipeline.predict(X_test)
 probs = pipeline.predict_proba(X_test)
 
-
-print(metrics.balanced_accuracy_score(y_test_dich, preds))
-print(metrics.average_precision_score(y_test_dich, preds))
-print(metrics.f1_score(y_test_dich, preds))
+print(metrics.balanced_accuracy_score(y_test_multi, preds))
 
 
-hyperparameters = {'features__text__vectorizer__max_features' : [10000, 11000, 9000],
-                   'features__text__vectorizer__max_df': [0.7, 0.8],
-                   'classifier__max_depth': [90, 100],
-                   'classifier__learning_rate': [0.2, 0.3, 0.4],
-                   'classifier__subsample' : [0.8, 0.7]
-                   #'classifier__min_samples_leaf': [1,2]
-                   #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
-                  }
-clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
-clf.fit(X_train, y_train_dich)
-
-clf.best_params_
-
-#refit on test data using best settings to obtain final results
-clf.refit
-preds = clf.predict(X_test)
-probs = clf.predict_proba(X_test)
-
-print(metrics.balanced_accuracy_score(y_test_dich, preds))
-print(metrics.average_precision_score(y_test_dich, preds))
-print(metrics.f1_score(y_test_dich, preds))
-
-clf.best_estimator_
-
-pd.DataFrame(clf.cv_results_).to_csv("fifth_run.csv")
-
-
-#ROC curve
-# Compute ROC curve and ROC area for each class
-'''
-When using normalized units, the area under the curve (often referred to as simply the AUC) is equal to the probability 
-that a classifier will rank a randomly chosen positive instance higher than a randomly chosen negative one 
-(assuming 'positive' ranks higher than 'negative')
-'''
 auc = roc_auc_score(y_test_dich, probs[:, 1])
 fpr, tpr, thresholds = roc_curve(y_test_dich, probs[:, 1])
 
 # plt.grid(color='grey', linestyle='-', linewidth=0.5)
 plot_roc_curve(fpr, tpr, auc)
-
-
-'''
-clf.best_params_
-Out[3]: 
-{'classifier__learning_rate': 0.3,
- 'classifier__max_depth': 90,
- 'classifier__subsample': 0.8,
- 'features__text__vectorizer__max_df': 0.8,
- 'features__text__vectorizer__max_features': 10000}
- '''
-
-'''
-hyperparameters = {'features__text__vectorizer__max_features' : [10000, 20000, 30000, 50000, 100000],
-                   'features__text__vectorizer__max_df': [0.8, 0.85],
-                   #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
-                   'classifier__max_depth': [5, 90],
-                   'classifier__learning_rate': [0.1, 0.05,0.01]
-                   #'classifier__min_samples_leaf': [1,2]
-                  }
-GIVES
-clf.best_params_
-Out[99]: 
-{'classifier__learning_rate': 0.1,
- 'classifier__max_depth': 90,
- 'features__text__vectorizer__max_df': 0.8,
- 'features__text__vectorizer__max_features': 10000}
-
-
-'''
-
-
-
-'''
-regression for trees: (does not work well)
-pipeline = Pipeline([
-                ('features',feats),
-                ('Regressor', XGBRegressor(max_depth=2, learning_rate=0.01, n_estimators=1000,
-                                           verbosity=1, booster='gbtree', n_jobs=4
-                                           ))
-            ])
-
-pipeline.fit(X_train, y_train_log)
-
-preds = pipeline.predict(X_test)
-rmse = np.sqrt(metrics.mean_squared_error(y_test_log, preds))
-print(rmse)
-
-
-####################
-'''

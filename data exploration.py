@@ -2,10 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-
-
 # read in the data from the saved datafile
-dat = pd.read_csv("HLN_ML_data.csv",  index_col=None)
+dat = pd.read_csv("HLN_ML_data_final.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
 dat.title = dat.title.astype("str")
