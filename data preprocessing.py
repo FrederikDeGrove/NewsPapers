@@ -14,6 +14,10 @@ import pattern
 from pattern.nl import parse, split
 from pattern.nl import sentiment
 
+import unidecode
+#TODO unaccented_string = unidecode.unidecode(accented_string)
+
+
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
@@ -22,8 +26,8 @@ pd.set_option('display.width', 500)
 #starting up jupyter notebook
 #jupyter notebook
 # encoding=utf8
-#reload(sys)
-#sys.setdefaultencoding('utf8')
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 
 
@@ -54,12 +58,13 @@ def remove_words_of_length(dat, length=2):
 ###########################################################
 ###########################################################
 
-location = "hln_articles.csv"
+#location = "hln_articles.csv"
+location = "hln_data_final.csv"
 dat2 = []
-with open(location) as csv_file:
+with open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
-        row = [s.encode("utf-8") for s in row]
+        #row = [s.encode("utf-8") for s in row]
         if len(row) == 10:
             dat2.append(row)
         else:
@@ -80,6 +85,7 @@ p.time=p.time.astype("int64")
 ###########################################################
 
 t2 = list(p.text)
+'''
 to_replace = dict({'\\\\\\"': ' ', '\\"': '"', 'u0027': ' ', 'u0026' : '',
                    'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e',
                    '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
@@ -88,25 +94,26 @@ to_replace = dict({'\\\\\\"': ' ', '\\"': '"', 'u0027': ' ', 'u0026' : '',
                    '\xc3\xbc': 'u', '""' : '"',
                    '\xc2\xa0': ' ', '\\rawText': 'rawText', '?': ' ?',
                    '!': ' !', '\\\\r\\\\n': ' '})
-
 for key, value in to_replace.items():
     t2 = [i.replace(key, value) for i in t2]
 
 t2 = [i.replace('rawText":","textType', 'rawText":" ","textType') for i in t2]
-
+t2 = [i.replace("\\" , " ") for i in t2]
 
 print(t2[2181])
+'''
 
 title = []
 header = []
 subtitle= []
 
 for index, t_ in enumerate(t2):
-    r = t_.decode('unicode-escape')
-    k = list(t_)
-    k.insert(2, '"')
-    m = ''.join(k)
-    n = m[0:len(m)-1]
+    #r = t_.decode('unicode-escape')
+    #k = list(t_)
+    #k.insert(2, '"')
+    #m = ''.join(k)
+    #n = m[0:len(m)-1]
+    n = t_
     f = json.loads(n.encode("utf-8"))
     d = pd.DataFrame(f)
     title.append(pd.DataFrame(f).rawText[0])
@@ -153,11 +160,17 @@ p['subjectivity'] = subjectivity
 
 new_title = []
 for title_ in title:
-    t = parse(title_, lemmata=True)
+    t = pattern.nl.parse(title_, lemmata=True)
     g = pattern.text.Sentence(t)
     new_title.append(' '.join(g.lemmata))
 
 title = new_title
+
+
+#now that we read in data differently, we will need to replace ö etc first because now it is being deleted
+#TODO
+#TODO also: not all text is lowercase now
+
 
 #remove anything that is not a letter, number or ! or ?
 title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
@@ -201,7 +214,7 @@ p.drop_duplicates(subset=['title'], keep='last', inplace=True)
 
 # write away final data table to be used for analyses
 all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'polarity', 'subjectivity', 'title_lengths']]
-all_data.to_csv("HLN_ML_data.csv")
+all_data.to_csv("HLN_ML_data_final.csv")
 
 
 

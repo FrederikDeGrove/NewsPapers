@@ -58,7 +58,7 @@ features = [i for i in dat.columns.values if i not in ['views']]
 #numeric_features = [i for i in dat.columns.values if i  not in ['title', 'views']]
 target = 'views'
 
-X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.33, random_state=123)
+X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
 X_train.head()
 
 y_train_dich = [0 if i <= 1000 else 1 for i in y_train]
@@ -149,24 +149,22 @@ feats = FeatureUnion([
                 ('subjectivity', subjectivity)
             ])
 
+#the next step combines all features in one
 feature_processing = Pipeline([('feats', feats)])
+
 #feature_processing.fit_transform(X_train)
 
-
-
-
-
-pipeline2 = Pipeline([
+pipeline = Pipeline([
                 ('features',feats),
                 ('classifier', XGBClassifier(objective='binary:logistic', booster='gbtree'))
             ])
 
-#pipeline2.get_params().keys() #variables to tweak
+#pipeline.get_params().keys() #variables to tweak
 
-pipeline2.fit(X_train, y_train_dich)
-preds = pipeline2.predict(X_test)
+pipeline.fit(X_train, y_train_dich)
+preds = pipeline.predict(X_test)
+#pipeline.predict_proba(X_test)
 
-from sklearn.metrics import average_precision_score
 
 print(metrics.balanced_accuracy_score(y_test_dich, preds))
 print(metrics.average_precision_score(y_test_dich, preds))
@@ -181,7 +179,7 @@ hyperparameters = {'features__text__vectorizer__max_features' : [10000, 11000, 9
                    #'classifier__min_samples_leaf': [1,2]
                    #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
                   }
-clf = GridSearchCV(pipeline2, hyperparameters, cv=5, return_train_score=True)
+clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
 clf.fit(X_train, y_train_dich)
 
 clf.best_params_
@@ -223,13 +221,6 @@ Out[3]:
  'features__text__vectorizer__max_df': 0.8,
  'features__text__vectorizer__max_features': 10000}
  '''
-
-
-
-
-
-
-
 
 '''
 hyperparameters = {'features__text__vectorizer__max_features' : [10000, 20000, 30000, 50000, 100000],
