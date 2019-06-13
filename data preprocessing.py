@@ -11,25 +11,14 @@ import pprint
 from collections import Counter
 from nltk.tokenize import RegexpTokenizer
 import pattern
-from pattern.nl import parse, split
-from pattern.nl import sentiment
-
+import pattern.nl
 import unidecode
-#TODO unaccented_string = unidecode.unidecode(accented_string)
+
 
 
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
-
-
-#starting up jupyter notebook
-#jupyter notebook
-# encoding=utf8
-reload(sys)
-sys.setdefaultencoding('utf8')
-
-
 
 ###########################################################
 ###########################################################
@@ -38,10 +27,12 @@ sys.setdefaultencoding('utf8')
 ###########################################################
 
 def countUpper(text):
-    return sum(1 for c in text if c.isupper())
+    #takes a text string and counts the number of upper cases for each element in the string
+    return sum(1 for i in text if i.isupper())
 
 def hasDigits(text):
-    return sum(1 for i in list(text) if i.isdigit())
+    #takes a string counts the number of digits for each element in the string
+    return sum(1 for i in text if i.isdigit())
 
 def remove_words_of_length(dat, length=2):
     to_pop = []
@@ -50,6 +41,30 @@ def remove_words_of_length(dat, length=2):
             to_pop.append(word)
     words = [i for i in dat.split(" ") if i not in to_pop]
     return ' '.join(words)
+
+def replace_characters(char_dict, text):
+    to_change = text
+    for key, value in char_dict.items():
+        to_change = to_change.replace(key, value)
+    return to_change
+
+def replace_strange_symbols(text):
+    return unidecode.unidecode(text)
+
+def customLemmatize(text_):
+    return ' '.join(pattern.text.Sentence(pattern.nl.parse(text_, lemmata=True)).lemmata)
+
+def setLowerCase(text):
+    return ''.join([i.lower() for i in text])
+
+def keepOnlyNumCharAndOther(text):
+    return re.sub('[^a-zA-Z1234567890!?]', ' ', text)
+
+def removeStopWords(text, stopword_list):
+    t = text.split(" ")
+    keepers = [i for i in t if i not in stopword_list]
+    return ' '.join(keepers)
+
 
 
 ###########################################################
@@ -60,19 +75,19 @@ def remove_words_of_length(dat, length=2):
 
 #location = "hln_articles.csv"
 location = "hln_data_final.csv"
-dat2 = []
+dat = []
 with open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
         #row = [s.encode("utf-8") for s in row]
         if len(row) == 10:
-            dat2.append(row)
+            dat.append(row)
         else:
             print("NOK")
 
-cols = dat2[0]
-dat2.pop(0)
-p = pd.DataFrame(dat2)
+cols = dat[0]
+dat.pop(0)
+p = pd.DataFrame(dat)
 p.columns = cols
 p.views=p.views.astype("int64")
 p.shares=p.shares.astype("int64")
@@ -80,42 +95,15 @@ p.time=p.time.astype("int64")
 
 ###########################################################
 ###########################################################
-################### TEXT MANIPULATION #####################
+################### extracting titles #####################
 ###########################################################
 ###########################################################
 
-t2 = list(p.text)
-'''
-to_replace = dict({'\\\\\\"': ' ', '\\"': '"', 'u0027': ' ', 'u0026' : '',
-                   'NV-A': 'NVA', 'CD&V':'CDV', '\xc3\xa9' : 'e',
-                   '\xc3\xab': 'e', '\xe2\x80\x9d':' ', '-' : '',
-                   '\xe2\x80\x9c': ' ', '\xe2\x80\x98' : ' ', '\u2019': ' ',
-                   '\u2018': ' ', '\xc3\xaa' : 'e', '\xc3\xa8' : 'e',
-                   '\xc3\xbc': 'u', '""' : '"',
-                   '\xc2\xa0': ' ', '\\rawText': 'rawText', '?': ' ?',
-                   '!': ' !', '\\\\r\\\\n': ' '})
-for key, value in to_replace.items():
-    t2 = [i.replace(key, value) for i in t2]
+temp_text = list(p.text)
+title, header, subtitle = [], [], []
 
-t2 = [i.replace('rawText":","textType', 'rawText":" ","textType') for i in t2]
-t2 = [i.replace("\\" , " ") for i in t2]
-
-print(t2[2181])
-'''
-
-title = []
-header = []
-subtitle= []
-
-for index, t_ in enumerate(t2):
-    #r = t_.decode('unicode-escape')
-    #k = list(t_)
-    #k.insert(2, '"')
-    #m = ''.join(k)
-    #n = m[0:len(m)-1]
-    n = t_
-    f = json.loads(n.encode("utf-8"))
-    d = pd.DataFrame(f)
+for index, n in enumerate(temp_text):
+    f = pd.DataFrame(json.loads(n.encode("utf-8")))
     title.append(pd.DataFrame(f).rawText[0])
     u = pd.DataFrame(f).textType
     if "INTRO" in set(u):
@@ -125,272 +113,80 @@ for index, t_ in enumerate(t2):
     if "SUBTITLE" in set(u):
         subtitle.append(pd.DataFrame(f).rawText[1])
     else:
-        subtitle.append(" ")
+        subtitle.append(0)
 
 title_backup = copy.deepcopy(title)
 
-title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER DAN 2 CHARACTERS
-
-p['title'] = title
-p['intro'] = header
-p['subtitle'] = subtitle
+###################################################################
+# now start working on the text to make it more processable       #
+#                                                                 #
+# make binary variable if there are:                              #
+# - numbers in the text                                           #
+# - more than one capital letter (indicating named entity)        #
+# - there was a subtitle                                          #
+#                                                                 #
+###################################################################
 
 hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
 hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
 hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
+numberOfWords = [len(i.split(" ")) for i in title]
+
+
+###################################################################
+#           perform text manipulations                            #
+#                  1.                                                #
+#                                                                 #
+#                                                                 #
+#                                                                 #
+#                                                                 #
+#                                                                 #
+###################################################################
+
+
+
+# perform a number of text manipulations on titles
+title = [replace_strange_symbols(i) for i in title] #replace letters such as é with e
+to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : ''}) # replace ' and " with white space
+title = [replace_characters(to_replace, i) for i in title]
+title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER DAN 2 CHARACTERS
+sentiment_score = [pattern.nl.sentiment(i) for i in title] #compute sentiment scores
+polarity = [i[0] for i in sentiment_score] #polarity score
+subjectivity = [i[1] for i in sentiment_score] #subjectivity score
+title = [customLemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
+title = [setLowerCase(i) for i in title] #set all to lowercase
+title = [keepOnlyNumCharAndOther(i) for i in title] #revove everything but numbers, letters and ! and ?
+title = [removeStopWords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
+title = [' '.join(i.split()) for i in title] #remove whitespaces
+title_backup2 = title
 
 p['hasNamedEntity'] =hasNamedEntity
 p['hasNumbers'] = hasNumbers
 p['hasSubTitle'] = hasSubTitle
-
-
-#perform sentiment analysis
-sentiment_score = [sentiment(i) for i in title]
-polarity = [i[0] for i in sentiment_score]
-subjectivity = [i[1] for i in sentiment_score]
-
-#polarity = [0 if i < 0 else 1 for i in polarity]
-#subjectivity = [0 if i < 0 else 1 for i in subjectivity]
-
 p['polarity'] = polarity
 p['subjectivity'] = subjectivity
-
-
-#lemmatizing
-
-new_title = []
-for title_ in title:
-    t = pattern.nl.parse(title_, lemmata=True)
-    g = pattern.text.Sentence(t)
-    new_title.append(' '.join(g.lemmata))
-
-title = new_title
-
-
-#now that we read in data differently, we will need to replace ö etc first because now it is being deleted
-#TODO
-#TODO also: not all text is lowercase now
-
-
-#remove anything that is not a letter, number or ! or ?
-title = pd.Series(title).apply(lambda elem: re.sub('[^a-zA-Z1234567890!?]',' ', elem))
-
-#lower() should be covered by parsing en lemmatizing
-#title = pd.Series([i.__str__().lower() for i in title]) # do this after we checked for named entities
-
-empty = [index for index, i in enumerate(title) if i == ' ']
-print(empty)
-
-
-tokenizer = RegexpTokenizer(r'\w+')
-words_descriptions = title.apply(tokenizer.tokenize)
-words_descriptions.head()
-
-
-title = None
-
-# nltk.download('stopwords')
-stopword_list = stopwords.words('dutch')
-words_descriptions = words_descriptions.apply(lambda elem: [word for word in elem if not word in stopword_list])
-new_titles = words_descriptions.apply(lambda elem: ' '.join(elem))
-title = [remove_words_of_length(i, length=1) for i in new_titles]
+p['title_lengths'] = numberOfWords
 p['title'] = title
 
-all_words = [word for tokens in words_descriptions for word in tokens]
-title_lengths = [len(tokens) for tokens in words_descriptions]
-p['title_lengths'] = title_lengths
-#add variable with number of words in title - maybe before all text manipulations....
+# remmove duplicates
+len(p) - p.title.nunique() # 13192 duplicates
+p.drop_duplicates(subset=['title'], keep='last', inplace=True)
 
 
-VOCAB = sorted(list(set(all_words)))
-print("%s words total, with a vocabulary size of %s" % (len(all_words), len(VOCAB)))
+#have a quick check on the words that happen most
+all_words = [word for sentence in title for word in sentence.split(' ')]
+unique_words = sorted(list(set(all_words)))
+print("%s words total, with a vocabulary size of %s" % (len(all_words), len(unique_words)))
 count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
 
-# remmove duplicates
-len(p) - p.title.nunique()   #5515 titles are the same
-temp = copy.deepcopy(p)
-p.drop_duplicates(subset=['title'], keep='last', inplace=True)
+
 
 # write away final data table to be used for analyses
 all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'polarity', 'subjectivity', 'title_lengths']]
 all_data.to_csv("HLN_ML_data_final.csv")
+s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+s.columns = ['word', 'counts']
+s.to_csv("all_words_counts.csv")
 
 
-
-
-
-
-
-
-
-
-'''
-X = vectorizer.fit_transform(p['title']).toarray()
-X = pd.DataFrame(X)
-y = p.views
-#split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=123)
-
-
-
-
-
-    BOOSTING
-    Bag of Words Counts (embeds each sentences as a list of 0 or 1, 1 represent containing word)
-    TF-IDF (Term Frequency, Inverse Document Frequency) (weighing words by how frequent they are in our dataset, discounting words that are too frequent)
-
-
-
-# BAG OF WORDS
-vectorizer= CountVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
-# TF-IDF
-vectorizer= TfidfVectorizer(analyzer='word', token_pattern=r'\w+',max_features=500)
-
-
-#standardize polarity, subjectivity, title_lengths
-
-
-
-#categorize hasNumbers and  hasNamedEntity
-
-
-
-
-
-
-
-# model definintion and training.
-
-#ideally, we have a loss function that punishes more for underestimation than overestimation(??)
-
-model = CatBoostRegressor(
-    #task_type = "GPU",
-    learning_rate= .01,
-    random_seed=100,
-    loss_function=['MAE', 'RMSE'],
-    iterations=10000,
-)
-
-mod = model.fit(
-    X_train, y_train,
-    verbose=False
-    #eval_set=(X_valid, y_valid)
-)
-
-print(mod.best_score_)
-
-cv_dataset = Pool(data=X_train,
-                  label=y_train
-)
-
-
-params = {"iterations": 1000,
-          "task_type" : "GPU",
-          "learning_rate" : .01,
-          "depth": 5,
-          "loss_function": "Poisson",
-          "verbose": False}
-
-
-scores = cv(cv_dataset,
-            params,
-            fold_count=5,
-            plot="False")
-
-print(scores.mean())
-
-
-
-s = p.groupby('section')
-s.shortId.describe()['count']
-
-
-
-plt.hist(p.views)
-plt.hist(p.views)
-
-len(p) == len(p.views)
-
-
-title = []
-text = []
-for index, i in enumerate(dat2):
-    if index != 0:
-        da = i[9].split('}')
-        if len(da) >= 2:
-            title.append(da[0].replace("\\", "").replace('\"', ''))
-            text.append(i[9][len(da[0]):])
-        else:
-            print(index)
-
-'''
-
-
-
-
-
-
-#old dataset with comments
-'''
-dat = []
-with open(location, encoding="utf8") as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',',quotechar='\"', escapechar="\\")
-    for row in csv_reader:
-        if len(row) == 11:
-            dat.append(row)
-        else:
-            print("NOK")
-
-#not_correct = [index for index, i in enumerate(dat) if len(i) != 11]
-#print(len(not_correct))
-
-x = pd.DataFrame(dat)
-x.columns = x.iloc[0]
-x = x[1:]
-x.gigya_id.nunique() #number of unique users
-
-#date manipulation
-x.sample()
-
-
-empty = []
-
-for index, i in enumerate(x.url):
-    if len(i) == 0:
-        empty.append(i)
-
-number_of_comments_per_article = x.article_id.value_counts()
-number_of_comments_per_title = x.title.value_counts()
-
-sum(number_of_comments_per_article > 50)
-sum(number_of_comments_per_title > 50)
-
-plt.plot(list(number_of_comments_per_title))
-
-
-# should we not look at the number of comments by unique users
-# x.gigya_id[x.article_id == "649c082f"].nunique()
-
-#!! niet elk article ID heeft zelfde titel!!!!!!!!
-x.title[x.article_id == "649c082f"]
-
-x.title.nunique() - x.article_id.nunique()
-
-
-number_of_comments_per_user = x.gigya_id.value_counts()
-
-
-number_of_comments_per_article.describe()
-
-
-x.publication_dt
-
-
-
-grouptitle = x.groupby(["title", "publication_dt"])
-new = grouptitle['comment'].count()
-
-p = pd.DataFrame(new)
-p['title'] = new.index
-'''
