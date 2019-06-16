@@ -1,10 +1,11 @@
-import pands as pd
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from keras import models
 from keras import layers
 import numpy as np
 from keras import optimizers
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 # read in the data from the saved datafile
 dat = pd.read_csv("HLN_ML_data.csv",  index_col=None)
@@ -27,7 +28,14 @@ y_train_dich = [0 if i <= 1000 else 1 for i in y_train]
 y_test_dich = [0 if i <= 1000 else 1 for i in y_test]
 
 
-vect = TfidfVectorizer()
+
+
+################################################################### to be put in pipeline
+
+number_of_words = 10000
+
+
+vect = TfidfVectorizer(max_features=number_of_words)
 tfidf_matrix = vect.fit_transform(X_train.title)
 tfidf_matrix.shape
 
@@ -48,8 +56,11 @@ for w, s in [(feature_names[i], s) for (i, s) in tfidf_scores]:
 
 model = models.Sequential()
 
-model.add(layers.Dense(16, activation='relu', input_shape=(75503,)))
+model.add(layers.Dense(520, activation='relu', input_shape=(number_of_words,)))
+model.add(layers.Dense(256, activation='relu'))
+model.add(layers.Dense(128, activation='relu'))
 model.add(layers.Dense(16, activation='relu'))
+
 model.add(layers.Dense(1, activation='sigmoid'))
 
 
@@ -58,7 +69,7 @@ model.compile(optimizer='rmsprop',
               metrics=['accuracy']
               )
 
-x_val = tfidf_matrix[:10000]
+x_val = tfidf_matrix[:10000] #take first 10K rows as validation and rist 10K word (columns)
 x_part_train = tfidf_matrix[10000:]
 
 y_val = y_train_dich[:10000]
@@ -70,6 +81,10 @@ history = model.fit(x_part_train,
                     epochs=20,
                     batch_size=512,
                     validation_data=(x_val, y_val))
+
+
+
+#### plotting
 
 history_dict = history.history
 history_dict.keys()

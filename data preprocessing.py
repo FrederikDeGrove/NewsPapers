@@ -73,19 +73,26 @@ def removeStopWords(text, stopword_list):
 ###########################################################
 ###########################################################
 
-newspaper = "DM"
+newspaper = "HLN"
 
 if newspaper == "DM":
     location = "dm_data_final.csv"
 else:
     location = "hln_data_final.csv"
 
+#run this code first if using python2
+# deprecated in Python 3
+#import sys
+#reload(sys)
+#sys.setdefaultencoding('utf8')
+
 
 dat = []
-with open(location, encoding="utf-8") as csv_file:
+#with open(location, encoding="utf-8") as csv_file:
+with codecs.open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
-        #row = [s.encode("utf-8") for s in row]
+        row = [s.encode("utf-8") for s in row]
         if len(row) == 10:
             dat.append(row)
         else:
