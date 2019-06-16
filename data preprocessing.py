@@ -73,7 +73,7 @@ def removeStopWords(text, stopword_list):
 ###########################################################
 ###########################################################
 
-newspaper = "HLN"
+newspaper = "DM"
 
 if newspaper == "DM":
     location = "dm_data_final.csv"
@@ -82,9 +82,9 @@ else:
 
 #run this code first if using python2
 # deprecated in Python 3
-#import sys
-#reload(sys)
-#sys.setdefaultencoding('utf8')
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 
 dat = []
@@ -202,6 +202,13 @@ if newspaper == "DM":
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
     s.columns = ['word', 'counts']
     s.to_csv("all_words_counts_DM.csv")
+
+    # raw data for neural nets
+    view = [i[9] for i in dat]
+    raw = pd.DataFrame(title_backup, view).reset_index()
+    raw.columns = ['views', 'title']
+    raw.to_csv("raw_DM.csv")
+
 else:
     all_data.to_csv("HLN_ML_data_final.csv")
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
@@ -209,3 +216,8 @@ else:
     s.to_csv("all_words_counts_HLN.csv")
 
 
+    #raw data for neural nets
+    view = [i[9] for i in dat]
+    raw = pd.DataFrame(title_backup, view).reset_index()
+    raw.columns = ['views', 'title']
+    raw.to_csv("raw_HLN.csv")
