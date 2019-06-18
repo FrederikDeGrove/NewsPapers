@@ -35,7 +35,6 @@ def plot_roc_curve(fpr, tpr, auc):
     plt.figtext(.31, .5, 'AUC = ' + str(round(auc, 4)))
     plt.show()
 
-
 ###########################################################
 ###########################################################
 ################### DATA PREPARATION  #####################
@@ -109,7 +108,7 @@ param_grid = {'sentence_length': [np.percentile(dat.title_lengths, 50)],
               'batchSize': [1000000],
               'embedding_regularization' : [.001],
               'epochs': [5],
-              'embedding_dimensions' : [2]
+              'embedding_dimensions' : [2, 10]
               }
 
 #set this variable to True is you want to pick up on a failed or crashed attempt but want to use
@@ -136,7 +135,6 @@ for combination in grid:
 
     text = X_train.title
     text = text.values.tolist()
-
     if raw:
         tokenizer = Tokenizer(num_words=max_words, lower=True, filters='@\t\n')
     else:
@@ -151,17 +149,11 @@ for combination in grid:
     y_train = np.asarray(y_train_dich)
 
 
-#building embedding layer
-# https://keras.io/layers/embeddings/
-
-# keras.layers.Embedding(input_dim, output_dim, embeddings_initializer='uniform', embeddings_regularizer=None, activity_regularizer=None, embeddings_constraint=None, mask_zero=False, input_length=None)
-
     model = Sequential()
     #if embedding = True:
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
-    #if typeNN = 'LSTM'
-    #model.add(LSTM(32))
-    model.add(Flatten())
+    model.add(LSTM(32))
+    #model.add(Flatten())
     #model.add(Dense(32, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc', auroc])
@@ -182,13 +174,15 @@ for combination in grid:
     number_parameters = history.model.count_params()
     number_layers = len(history.model.layers)
     #write to grid information
-    combination['max_accuracy'] = max(acc)
-    combination['mean_accuracy'] = np.mean(acc)
-    combination['max_val_acc'] = max(val_acc)
-    combination['mean_val_acc'] = np.mean(val_acc)
-    combination['sd_val_acc'] = np.std(val_acc)
-    combination['mean_auroc'] = np.mean(history.history['auroc'])
-    combination['sd_auroc'] = np.std(history.history['auroc'])
+    combination['max_accuracy'] = round(max(acc),4)
+    combination['mean_accuracy'] = round(np.mean(acc),4)
+    combination['max_val_acc'] = round(max(val_acc),4)
+    combination['mean_val_acc'] = round(np.mean(val_acc),4)
+    combination['sd_val_acc'] = round(np.std(val_acc),4)
+    combination['epoch_where_max_val_acc_reached'] = history.history['val_acc'].index(max(history.history['val_acc']))
+    combination['mean_auroc'] = round(np.mean(history.history['auroc']),4)
+    combination['sd_auroc'] = round(np.std(history.history['auroc']),4)
+    combination['epoch_where_max_auc_reached'] = history.history['auroc'].index(max(history.history['auroc']))
     combination['number_parameters'] = number_parameters
     combination['number_layers'] = number_layers
     combination['date_logged'] = date_start
