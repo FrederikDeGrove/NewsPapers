@@ -14,6 +14,7 @@ from sklearn import metrics
 import xgboost
 from catboost import CatBoostRegressor
 from sklearn.model_selection import GridSearchCV
+import matplotlib.pyplot as plt
 
 #setting some options for pandas
 pd.set_option('display.max_columns', 20)
@@ -36,13 +37,14 @@ def plot_roc_curve(fpr, tpr, auc):
 
 # read in the data from the saved datafile
 #dat = pd.read_csv("HLN_ML_data_final.csv",  index_col=None)
-dat = pd.read_csv("HLN_ML_data_final.csv",  index_col=None)
+dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
+
 
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
 dat.title = dat.title.astype("str")
-dat.subjectivity = dat.subjectivity.astype("float64")
-dat.polarity = dat.polarity.astype("float64")
+#dat.subjectivity = dat.subjectivity.astype("float64")
+#dat.polarity = dat.polarity.astype("float64")
 dat.title_lengths = dat.title_lengths.astype("float64")
 
 
@@ -105,7 +107,6 @@ class NumberSelector(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return X[[self.key]]
 
-CountVectorizer
 
 text = Pipeline([
                 ('selector', TextSelector(key='title')),
@@ -146,11 +147,11 @@ subjectivity = Pipeline([
 
 feats = FeatureUnion([
                 ('text', text),
-                ('length', length),
-                ('numbers', numbers),
-                ('entities', entities),
-                ('polarity', polarity),
-                ('subjectivity', subjectivity)
+                #('length', length),
+                #('numbers', numbers),
+                #('entities', entities),
+                #('polarity', polarity),
+                #('subjectivity', subjectivity)
             ])
 
 #the next step combines all features in one
@@ -175,11 +176,11 @@ print(metrics.average_precision_score(y_test_dich, preds))
 print(metrics.f1_score(y_test_dich, preds))
 
 
-hyperparameters = {'features__text__vectorizer__max_features' : [10000, 11000, 9000],
-                   'features__text__vectorizer__max_df': [0.7, 0.8],
-                   'classifier__max_depth': [90, 100],
-                   'classifier__learning_rate': [0.2, 0.3, 0.4],
-                   'classifier__subsample' : [0.8, 0.7]
+hyperparameters = {'features__text__vectorizer__max_features' : [11000],
+                   'features__text__vectorizer__max_df': [0.8],
+                   'classifier__max_depth': [100],
+                   'classifier__learning_rate': [0.3],
+                   'classifier__subsample' : [0.7]
                    #'classifier__min_samples_leaf': [1,2]
                    #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
                   }

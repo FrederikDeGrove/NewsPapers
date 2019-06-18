@@ -32,7 +32,7 @@ y_test_dich = [0 if i <= 1000 else 1 for i in y_test]
 
 ################################################################### to be put in pipeline
 
-number_of_words = 10000
+number_of_words = 15000
 
 
 vect = TfidfVectorizer(max_features=number_of_words)
@@ -55,12 +55,10 @@ for w, s in [(feature_names[i], s) for (i, s) in tfidf_scores]:
 
 
 model = models.Sequential()
-
 model.add(layers.Dense(520, activation='relu', input_shape=(number_of_words,)))
-model.add(layers.Dense(256, activation='relu'))
-model.add(layers.Dense(128, activation='relu'))
+#model.add(layers.Dense(256, activation='relu'))
+#model.add(layers.Dense(128, activation='relu'))
 model.add(layers.Dense(16, activation='relu'))
-
 model.add(layers.Dense(1, activation='sigmoid'))
 
 
