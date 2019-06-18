@@ -5,6 +5,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Flatten
 import matplotlib.pyplot as plt
 from keras import regularizers
+from keras.layers import LSTM
+from keras import optimizers
 
 import numpy as np
 import pandas as pd
@@ -16,16 +18,14 @@ from sklearn.model_selection import train_test_split
 ###########################################################
 ###########################################################
 
-raw = True
+raw = False
 
 if raw == False:
     # read in the data from the saved datafile
-    dat = pd.read_csv("HLN_ML_data.csv",  index_col=None)
+    dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
     dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
     dat.title = dat.title.astype("str")
-    dat.subjectivity = dat.subjectivity.astype("float64")
-    dat.polarity = dat.polarity.astype("float64")
     dat.title_lengths = dat.title_lengths.astype("float64")
 else:
     dat = pd.read_csv("raw_HLN.csv", index_col = None)
@@ -64,7 +64,7 @@ to feed them to the network. So it makes sense to keep those methods separate.
 '''
 
 maxlen = 20
-max_words = 20000
+max_words = 15000
 
 text = X_train.title
 text = text.values.tolist()
@@ -88,18 +88,20 @@ y_train = np.asarray(y_train_dich)
 
 # keras.layers.Embedding(input_dim, output_dim, embeddings_initializer='uniform', embeddings_regularizer=None, activity_regularizer=None, embeddings_constraint=None, mask_zero=False, input_length=None)
 
-
-epochs_ = 600
-batch_size = 64
-output_d = 1
+epochs_ = 10
+batch_size = 128*128
+output_d = 10
 
 model = Sequential()
 model.add(Embedding(max_words +1, output_dim= output_d , input_length= maxlen,embeddings_regularizer=regularizers.l1(.001)))
-model.add(Flatten())
+model.add(LSTM(32))
+#model.add(Flatten())
 #model.add(Dense(32, activation='relu'))
 model.add(Dense(1, activation='sigmoid'))
 
-model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['acc'])
+opti = optimizers.rmsprop(lr=.01) #set optimizer and its learning rate
+
+model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc'])
 model.summary()
 
 history = model.fit(data, y_train,

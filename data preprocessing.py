@@ -65,6 +65,29 @@ def removeStopWords(text, stopword_list):
     keepers = [i for i in t if i not in stopword_list]
     return ' '.join(keepers)
 
+def processNumbers(sentence):
+    # takes a sentence, checks if it has any digita. If so, return new sentence with digital processed
+    if any(char.isdigit() for char in sentence):
+        words = sentence.split()
+        new_sentence = []
+        for word in words:
+            if any(char.isdigit() for char in word):
+                number = int(''.join([i for i in word if i.isdigit()]))
+
+                if number <= 10:
+                    newword = "smallnumber"
+                elif number <= 100:
+                    newword = "mediumnumber"
+                else:
+                    newword = "bignumber"
+                new_sentence.append(newword)
+
+                #new_sentence.append(number)
+            else:
+                new_sentence.append(word)
+        return ' '.join(new_sentence)
+    else:
+        return sentence
 
 
 ###########################################################
@@ -72,8 +95,8 @@ def removeStopWords(text, stopword_list):
 ###################    READING DATA   #####################
 ###########################################################
 ###########################################################
-
-newspaper = "DM"
+newspaper = "HLN"
+write_raw = False
 
 if newspaper == "DM":
     location = "dm_data_final.csv"
@@ -82,17 +105,17 @@ else:
 
 #run this code first if using python2
 # deprecated in Python 3
-import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
+#import sys
+#reload(sys)
+#sys.setdefaultencoding('utf8')
 
 
 dat = []
-#with open(location, encoding="utf-8") as csv_file:
-with codecs.open(location, encoding="utf-8") as csv_file:
+with open(location, encoding="utf-8") as csv_file:
+#with codecs.open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
-        row = [s.encode("utf-8") for s in row]
+        #row = [s.encode("utf-8") for s in row]
         if len(row) == 10:
             dat.append(row)
         else:
@@ -156,17 +179,25 @@ numberOfWords = [len(i.split(" ")) for i in title]
 #                                                                 #
 ###################################################################
 
-
-
 # perform a number of text manipulations on titles
 title = [replace_strange_symbols(i) for i in title] #replace letters such as é with e
-to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : ''}) # replace ' and " with white space
+to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : '', '\r' : ' ', '\n' : ' '}) # replace ' and " with white space and similar operations
 title = [replace_characters(to_replace, i) for i in title]
-title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER DAN 2 CHARACTERS
-sentiment_score = [pattern.nl.sentiment(i) for i in title] #compute sentiment scores
-polarity = [i[0] for i in sentiment_score] #polarity score
-subjectivity = [i[1] for i in sentiment_score] #subjectivity score
+title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER than 1 char
+title = [processNumbers(i) for i in title] #transform all numbers in the text to specific word representations
+#sentiment_score = [pattern.nl.sentiment(i) for i in title] #compute sentiment scores
+#polarity = [i[0] for i in sentiment_score] #polarity score
+#subjectivity = [i[1] for i in sentiment_score] #subjectivity score
+
+'''
+for some reason, try to run this first before running customLemmatize function if it doesn't work
+import pattern.nl
+pattern.nl.parse('dit is een test')
+pattern.text.Sentence(pattern.nl.parse('dit is een test'))
+pattern.text.Sentence(pattern.nl.parse('dit is een test')).lemmata
+'''
 title = [customLemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
+
 title = [setLowerCase(i) for i in title] #set all to lowercase
 title = [keepOnlyNumCharAndOther(i) for i in title] #revove everything but numbers, letters and ! and ?
 title = [removeStopWords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
@@ -176,13 +207,13 @@ title_backup2 = title
 p['hasNamedEntity'] =hasNamedEntity
 p['hasNumbers'] = hasNumbers
 p['hasSubTitle'] = hasSubTitle
-p['polarity'] = polarity
-p['subjectivity'] = subjectivity
+#p['polarity'] = polarity
+#p['subjectivity'] = subjectivity
 p['title_lengths'] = numberOfWords
 p['title'] = title
 
 # remmove duplicates
-len(p) - p.title.nunique() # 13192 duplicates
+len(p) - p.title.nunique() # check if there are duplicates
 p.drop_duplicates(subset=['title'], keep='last', inplace=True)
 
 
@@ -194,30 +225,31 @@ count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
 
 # write away final data table to be used for analyses
-all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'polarity', 'subjectivity', 'title_lengths']]
+all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths']]
 
 
 if newspaper == "DM":
-    all_data.to_csv("DM_ML_data_final.csv")
+    all_data.to_csv("DM_ML_data_final_NN.csv")
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
     s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_DM.csv")
+    s.to_csv("all_words_counts_DM_NN.csv")
 
-    # raw data for neural nets
-    view = [i[9] for i in dat]
-    raw = pd.DataFrame(title_backup, view).reset_index()
-    raw.columns = ['views', 'title']
-    raw.to_csv("raw_DM.csv")
+    if write_raw:
+        # raw data for neural nets
+        view = [i[9] for i in dat]
+        raw = pd.DataFrame(title_backup, view).reset_index()
+        raw.columns = ['views', 'title']
+        raw.to_csv("raw_DM.csv")
 
 else:
-    all_data.to_csv("HLN_ML_data_final.csv")
+    all_data.to_csv("HLN_ML_data_final_NN.csv")
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
     s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_HLN.csv")
+    s.to_csv("all_words_counts_HLN_NN.csv")
 
-
-    #raw data for neural nets
-    view = [i[9] for i in dat]
-    raw = pd.DataFrame(title_backup, view).reset_index()
-    raw.columns = ['views', 'title']
-    raw.to_csv("raw_HLN.csv")
+    if write_raw:
+        #raw data for neural nets
+        view = [i[9] for i in dat]
+        raw = pd.DataFrame(title_backup, view).reset_index()
+        raw.columns = ['views', 'title']
+        raw.to_csv("raw_HLN.csv")
