@@ -23,6 +23,18 @@ def auroc(y_true, y_pred):
     return tf.py_func(roc_auc_score, (y_true, y_pred), tf.double)
 
 
+#functin for plotting ROC curve
+def plot_roc_curve(fpr, tpr, auc):
+    plt.plot(fpr, tpr, color='lightblue', label='ROC')
+    plt.plot([0, 1], [0, 1], color='pink', linestyle='--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve')
+    plt.legend()
+    #plt.box(False)
+    plt.figtext(.31, .5, 'AUC = ' + str(round(auc, 4)))
+    plt.show()
+
 
 ###########################################################
 ###########################################################
@@ -148,8 +160,8 @@ for combination in grid:
     #if embedding = True:
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
     #if typeNN = 'LSTM'
-    model.add(LSTM(32))
-    #model.add(Flatten())
+    #model.add(LSTM(32))
+    model.add(Flatten())
     #model.add(Dense(32, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc', auroc])
@@ -194,6 +206,39 @@ for combination in grid:
             dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
             dict_writer.writeheader()
             dict_writer.writerows(grid)
+
+'''
+#run model on complete training set to get validation results
+
+
+#for test set
+text = X_test.title
+text = text.values.tolist()
+
+if raw:
+    tokenizer = Tokenizer(num_words=max_words, lower=True, filters='@\t\n')
+else:
+    tokenizer = Tokenizer(num_words=max_words, filters='+@&', lower=False)
+
+tokenizer.fit_on_texts(texts=text)
+sequences = tokenizer.texts_to_sequences(X_test.title)
+word_index = tokenizer.word_index
+print('found %s unique tokens.' % len(word_index))
+
+data_test = pad_sequences(sequences, maxlen=sentence_length)
+y_test = np.asarray(y_test_dich)
+
+pred_class = history.model.predict_classes(data_test)
+probs = history.model.predict(data_test)
+
+
+auc = roc_auc_score(y_test_dich, probs)
+fpr, tpr, thresholds = roc_curve(y_test_dich, probs)
+#plt.grid(color='grey', linestyle='-', linewidth=0.5)
+plot_roc_curve(fpr, tpr, auc)
+'''
+
+
 
 '''
 epochs = range(1, len(acc) +1)
