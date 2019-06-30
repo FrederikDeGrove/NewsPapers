@@ -153,6 +153,10 @@ for index, n in enumerate(temp_text):
 
 title_backup = copy.deepcopy(title)
 
+#add categories
+p['category'] = pd.DataFrame([i[1][1:] for i in dat])
+
+
 ###################################################################
 # now start working on the text to make it more processable       #
 #                                                                 #
@@ -225,14 +229,14 @@ count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
 
 # write away final data table to be used for analyses
-all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths']]
+all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'category']]
 
 
 if newspaper == "DM":
-    all_data.to_csv("DM_ML_data_final_NN.csv")
+    all_data.to_csv("DM_ML_data_final_NN_B.csv")
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
     s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_DM_NN.csv")
+    s.to_csv("all_words_counts_DM_NN_B.csv")
 
     if write_raw:
         # raw data for neural nets
@@ -242,10 +246,10 @@ if newspaper == "DM":
         raw.to_csv("raw_DM.csv")
 
 else:
-    all_data.to_csv("HLN_ML_data_final_NN.csv")
+    all_data.to_csv("HLN_ML_data_final_NN_B.csv")
     s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
     s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_HLN_NN.csv")
+    s.to_csv("all_words_counts_HLN_NN_B.csv")
 
     if write_raw:
         #raw data for neural nets
