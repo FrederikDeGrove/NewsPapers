@@ -8,20 +8,21 @@ from keras import regularizers
 from keras.layers import LSTM
 from keras import optimizers
 from sklearn.model_selection import ParameterGrid
+from keras import callbacks
 import csv
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, accuracy_score
 import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 import datetime
+
 
 ## custom function
 #source https://stackoverflow.com/questions/41032551/how-to-compute-receiving-operating-characteristic-roc-and-auc-in-keras
 def auroc(y_true, y_pred):
     return tf.py_func(roc_auc_score, (y_true, y_pred), tf.double)
-
 
 #functin for plotting ROC curve
 def plot_roc_curve(fpr, tpr, auc):
@@ -70,6 +71,35 @@ y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
 y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
 
 
+y_train = np.asarray(y_train_dich)
+
+#create sequence
+
+text = X_train.title
+text = text.values.tolist()
+
+max_words = 5350  # refer to the data exploration file to get this number
+#
+
+
+if raw:
+    tokenizer = Tokenizer(num_words=max_words, lower=True, filters='@\t\n')
+else:
+    tokenizer = Tokenizer(num_words=max_words, filters='+@&', lower=False)
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+tokenizer.fit_on_texts(texts=text) #important, this tokenizer should also be used to
+#convert test data to sequences
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+sequences = tokenizer.texts_to_sequences(X_train.title)
+word_index = tokenizer.word_index
+print('found %s unique tokens.' % len(word_index))
+
+
+
+
+
 '''
 https://stackoverflow.com/questions/51956000/what-does-keras-tokenizer-method-exactly-do
 
@@ -78,7 +108,7 @@ So if you give it something like, "The cat sat on the mat." It will create a dic
 it is word -> index dictionary so every word gets a unique integer value. So lower integer means more frequent word (often the first few are punctuation because they appear a lot).
 
 texts_to_sequences Transforms each text in texts to a sequence of integers. So it basically takes each word in the text and replaces it 
-with its corresponding integer value from the word_index dictionary. Nothing more, nothing less, certainly no magic involved.
+with its corresponding integer value from the word_index dictionary. Nothing more, nothing less
 
 Why don't combine them? Because you almost always fit once and convert to sequences many times. 
 You will fit on your training corpus once and use that exact same word_index dictionary at train / eval / testing / prediction time to convert actual text into sequences 
@@ -94,74 +124,77 @@ to feed them to the network. So it makes sense to keep those methods separate.
 
 # constructing a parameter grid
 
-'''
-real grid
 param_grid = {'sentence_length': [np.percentile(dat.title_lengths, 50), np.percentile(dat.title_lengths, 75), np.percentile(dat.title_lengths, 95)],
-              'batchSize': [128, 256, 512, 1024],
-              'embedding_regularization' : [.001, .01],
-              'epochs': [5,10,100,500],
-              'embedding_dimensions' : [2, 10, 50, 100, 200, 300]
-              }
-'''
-
-param_grid = {'sentence_length': [np.percentile(dat.title_lengths, 50)],
-              'batchSize': [1000000],
-              'embedding_regularization' : [.001],
-              'epochs': [5],
-              'embedding_dimensions' : [2, 10]
+              'batchSize': [32, 5000],
+              'embedding_regularization': [.00001, .0001],
+              'embedding_dimensions': [2, 10, 50, 100, 300],
+              'nodes_layer_2': [2, 10, 30, 100, 300],
+              'learning-rate': [.001]
               }
 
-#set this variable to True is you want to pick up on a failed or crashed attempt but want to use
-#the saved output for the successful runs
-write_to_existing_csv_file = False
 
-grid = list(ParameterGrid(param_grid))
 
-for combination in grid:
+filename = "Sentence_Embedding3Layer_C.csv"
 
+try:
+    with open(filename, 'r') as fh:
+        write_to_existing_csv_file = True
+except:
+    write_to_existing_csv_file = False
+
+grid_full = list(ParameterGrid(param_grid))
+
+grid = grid_full[0:]
+
+for grindex, combination in enumerate(grid):
+    #print(grindex)
     date_start = datetime.datetime.now().date()
     time_start = datetime.datetime.now()
-
     sentence_length = int(combination['sentence_length'])
     batch_size = combination['batchSize']
     regularization = combination['embedding_regularization']
-    epochs_ = combination['epochs']
     output_d = combination['embedding_dimensions']
-    max_words = 15000 #still to be determined based on word counts
-    opti = optimizers.rmsprop(lr=.001) #set optimizer and its learning rate
-
+    layer2_size = combination['nodes_layer_2']
+    opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
+    data = pad_sequences(sequences, maxlen=sentence_length)
+    #modelname = "embeddings_" + str(grindex) + "hdf5"
 
     #################################################
-
-    text = X_train.title
-    text = text.values.tolist()
-    if raw:
-        tokenizer = Tokenizer(num_words=max_words, lower=True, filters='@\t\n')
-    else:
-        tokenizer = Tokenizer(num_words=max_words, filters='+@&', lower=False)
-
-    tokenizer.fit_on_texts(texts=text)
-    sequences = tokenizer.texts_to_sequences(X_train.title)
-    word_index = tokenizer.word_index
-    print('found %s unique tokens.' % len(word_index))
-
-    data = pad_sequences(sequences, maxlen=sentence_length)
-    y_train = np.asarray(y_train_dich)
-
-
     model = Sequential()
     #if embedding = True:
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
-    model.add(LSTM(32))
-    #model.add(Flatten())
-    #model.add(Dense(32, activation='relu'))
+    #model.add(LSTM(32))
+    model.add(Flatten())
+    model.add(Dense(layer2_size , activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
+
+    callback_list = [
+        callbacks.EarlyStopping(
+            monitor='acc',
+            patience=10,
+            restore_best_weights=True
+        ),
+
+        #callbacks.ModelCheckpoint(
+        #    filepath=modelname,
+        #    monitor='vall_loss',
+        #    save_best_only=True
+        #    ),
+
+        callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=.1,
+            patience=10
+        )
+    ]
+
     model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc', auroc])
     model.summary()
 
     history = model.fit(data, y_train,
-                        epochs=epochs_,
+                        epochs=500,
                         batch_size=batch_size,
+                        callbacks=callback_list,
                         validation_split=0.2)
 
     time_end = datetime.datetime.now()
@@ -180,6 +213,7 @@ for combination in grid:
     combination['mean_val_acc'] = round(np.mean(val_acc),4)
     combination['sd_val_acc'] = round(np.std(val_acc),4)
     combination['epoch_where_max_val_acc_reached'] = history.history['val_acc'].index(max(history.history['val_acc']))
+    combination['max_val_auroc'] = round(max(history.history['val_auroc']), 4)
     combination['mean_auroc'] = round(np.mean(history.history['auroc']),4)
     combination['sd_auroc'] = round(np.std(history.history['auroc']),4)
     combination['epoch_where_max_auc_reached'] = history.history['auroc'].index(max(history.history['auroc']))
@@ -189,17 +223,18 @@ for combination in grid:
     combination['time_taken_seconds'] = (time_end - time_start).seconds
 
     # write data to csv
-    keys = grid[0].keys()
-    if write_to_existing_csv_file:
-        with open('LSTM.csv', 'a') as output_file:
+    gridwrite = grid[grindex]
+    keys = gridwrite.keys()
+    if write_to_existing_csv_file or  grindex is not 0:
+        with open(filename, 'a') as output_file:
             dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
             #dict_writer.writeheader()
-            dict_writer.writerows(grid)
+            dict_writer.writerows([gridwrite])
     else:
-        with open('LSTM.csv', 'w') as output_file:
+        with open(filename, 'w') as output_file:
             dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
             dict_writer.writeheader()
-            dict_writer.writerows(grid)
+            dict_writer.writerows([gridwrite])
 
 '''
 #run model on complete training set to get validation results
@@ -214,6 +249,9 @@ if raw:
 else:
     tokenizer = Tokenizer(num_words=max_words, filters='+@&', lower=False)
 
+
+THIS NEEDS TO BE CHECKEN, APPARANTLY IT IS NOT THE BEDOELING THAT YOU
+CREATE A NEW TOKENIZER FOR TEST DATA
 tokenizer.fit_on_texts(texts=text)
 sequences = tokenizer.texts_to_sequences(X_test.title)
 word_index = tokenizer.word_index

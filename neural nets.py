@@ -8,12 +8,16 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 # read in the data from the saved datafile
-dat = pd.read_csv("HLN_ML_data.csv",  index_col=None)
+
+# HLN_ML_data
+
+
+dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
 dat.title = dat.title.astype("str")
-dat.subjectivity = dat.subjectivity.astype("float64")
-dat.polarity = dat.polarity.astype("float64")
+#dat.subjectivity = dat.subjectivity.astype("float64")
+#dat.polarity = dat.polarity.astype("float64")
 dat.title_lengths = dat.title_lengths.astype("float64")
 
 
@@ -76,14 +80,14 @@ y_part_train = y_train_dich[10000:]
 
 history = model.fit(x_part_train,
                     y_part_train,
-                    epochs=20,
+                    epochs=10,
                     batch_size=512,
                     validation_data=(x_val, y_val))
 
 
 
 #### plotting
-
+'''
 history_dict = history.history
 history_dict.keys()
 
@@ -138,3 +142,4 @@ model_final.fit(tfidf_matrix, y_train_dich, epochs=3, batch_size= 512)
 results = model_final.evaluate(X_test, y_test_dich)
 
 print(results)
+'''
