@@ -3,20 +3,17 @@ import csv
 import json
 import codecs
 from nltk.corpus import stopwords
-import string
 import re
-import sys
 import copy
 import pprint
 from collections import Counter
-from nltk.tokenize import RegexpTokenizer
 import pattern
 import pattern.nl
 import unidecode
 
 
 
-#setting some options for pandas
+#setting some options for pandas views
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
@@ -111,12 +108,12 @@ else:
 
 
 dat = []
-with open(location, encoding="utf-8") as csv_file:
-#with codecs.open(location, encoding="utf-8") as csv_file:
+#with open(location, encoding="utf-8") as csv_file:
+with codecs.open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
         #row = [s.encode("utf-8") for s in row]
-        if len(row) == 10:
+        if len(row) == 10: #check if each row splits in 10 columns
             dat.append(row)
         else:
             print("NOK")
@@ -175,7 +172,7 @@ numberOfWords = [len(i.split(" ")) for i in title]
 
 ###################################################################
 #           perform text manipulations                            #
-#                  1.                                                #
+#                                                                 #
 #                                                                 #
 #                                                                 #
 #                                                                 #
@@ -184,7 +181,7 @@ numberOfWords = [len(i.split(" ")) for i in title]
 ###################################################################
 
 # perform a number of text manipulations on titles
-title = [replace_strange_symbols(i) for i in title] #replace letters such as é with e
+title = [replace_strange_symbols(i) for i in title] # replace letters with tremas
 to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : '', '\r' : ' ', '\n' : ' '}) # replace ' and " with white space and similar operations
 title = [replace_characters(to_replace, i) for i in title]
 title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER than 1 char
@@ -227,6 +224,12 @@ unique_words = sorted(list(set(all_words)))
 print("%s words total, with a vocabulary size of %s" % (len(all_words), len(unique_words)))
 count_all_words = Counter(all_words)
 pprint.pprint(count_all_words.most_common(50))
+
+#we will use the those words
+vals = pd.DataFrame([i for i in count_all_words.values()])
+vals.columns = ['counter']
+number_to_include = np.percentile(vals.counter, 95)
+max_words = len(vals[vals.counter >= number_to_include])
 
 # write away final data table to be used for analyses
 all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'category']]
