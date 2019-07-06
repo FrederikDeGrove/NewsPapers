@@ -1,14 +1,17 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.manifold import TSNE
+
+
 
 
 # read in the data from the saved datafile
-dat = pd.read_csv("HLN_ML_data_final.csv",  index_col=None)
+dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
 dat.title = dat.title.astype("str")
-dat.subjectivity = dat.subjectivity.astype("float64")
-dat.polarity = dat.polarity.astype("float64")
+#dat.subjectivity = dat.subjectivity.astype("float64")
+#dat.polarity = dat.polarity.astype("float64")
 dat.title_lengths = dat.title_lengths.astype("float64")
 
 
@@ -21,9 +24,11 @@ The default format string is ‘b-‘, which is a solid blue line. For example,
 to plot the above with red circles, you would issue
 '''
 
+'''Index([u'views', u'title', u'hasNamedEntity', u'hasNumbers', u'title_lengths'], dtype='object')'''
+
 
 plt.xlabel('X')
-plt.ylabel('Views')
+plt.ylabel('views')
 plt.title('Plot of Number of Views')
 plt.plot(dat.views, 'bo')
 plt.plot(dat.views, 'k')
@@ -40,14 +45,13 @@ plt.axhline(500000)
 
 plt.plot(dat.views[dat.views < 50000])
 
-dat.boxplot\
-    ('views')
+dat.boxplot('views')
 plot.show()
 
 
 
 plt.hist(dat.title_lengths, bins = 20, color = "pink")
-plt.hist(dat.title_lengths, bins = 20, color = "lightblue")
+plt.hist(dat.title_lengths, bins = 200, color = "lightblue")
 
 x = [0,1,0,1,0,1,0,1]
 y = [132,465465,123,46,198,498,123132,89874]
@@ -85,3 +89,11 @@ plt.ylim([0.6, 0.9])
 plt.show()
 
 
+
+# TSNE
+X_tsne = TSNE(n_components=2, verbose=2).fit_transform(X)
+
+
+# In[25]:
+plt.figure(1, figsize=(30, 20),)
+plt.scatter(X_tsne[:, 0], X_tsne[:, 1],s=100, c=y, alpha=0.2)

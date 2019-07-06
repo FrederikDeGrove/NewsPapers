@@ -44,3 +44,96 @@ plt.plot(dat.max_val_acc, 'ko--', label="maximum validation accuracy")
 fig.add_subplot(1,1,1)
 plt.plot(dat.max_val_auroc, 'bo-', label="maximum auroc")
 plt.legend(loc="best")
+
+
+
+####################################################
+#   getting information and plots from models      #
+####################################################
+
+#get weights from first layer (in this case embeddiing
+
+from keract import get_activations
+weights = model.layers[0].get_weights()[0]
+weights.shape
+
+len(weights[0]) # gives all dimensions scores for 1 word
+len(weights[:,0]) # gives scores for all words on dimension 0
+
+
+
+# `word_to_index` is a mapping (i.e. dict) from words to their index, e.g. `love`: 69
+words_embeddings = {key:weights[value] for key, value in word_index.items()}
+
+#check if weights are indeed the same as weight embeddings we wrote to dict
+inv_map[1]
+words_embeddings['mediumnumber'] ==  weights[1]
+inv_map[10]
+words_embeddings['euro'] ==  weights[10]
+
+# check if weights that were stored when running the model are the same when saving the model
+from keras.models import load_model
+model2 = load_model("test_embdding_model.hdf5")
+weights2 = model2.layers[0].get_weights()[0]
+weights2.shape
+weights = weights2
+sum(weights == weights2)
+
+
+
+
+#### visualisation
+#https://www.kaggle.com/jeffd23/visualizing-word-vectors-with-t-sne
+len(words_embeddings.keys()) #this is too long, let"s make it shorter
+
+new_emb = dict()
+for key, value in inv_map.items():
+    if key >= 0 and key <= 5000:
+        new_emb[value] = key
+
+new_word_embeddings = {key:weights[value] for key, value in new_emb.items()}
+
+
+from sklearn.manifold import TSNE
+
+tsne_plot(new_word_embeddings , perplexity=15)
+
+
+def tsne_plot(model, perplexity=10, n_iter=5000):
+    "Creates and TSNE model and plots it"
+    labels = []
+    embeddings = []
+
+    for word, embedding in words_embeddings.items():
+        labels.append(word)
+        embeddings.append(embedding)
+
+    tsne_model = TSNE(perplexity=15, n_components=2, init='pca', n_iter=5000, random_state=123)
+    new_values = tsne_model.fit_transform(embeddings)
+
+    x = []
+    y = []
+    for value in new_values:
+        x.append(value[0])
+        y.append(value[1])
+
+    plt.figure(figsize=(16, 16))
+    for i in range(len(x)):
+        plt.scatter(x[i], y[i])
+        #plt.annotate(labels[i],
+        #             xy=(x[i], y[i]),
+        #             xytext=(5, 2),
+        #             textcoords='offset points',
+        #             ha='right',
+        #             va='bottom')
+    plt.show()
+
+
+#  compute cosine similarity for two vectors
+from numpy import dot
+from numpy.linalg import norm
+
+a = words_embeddings['botermelkbaan']
+b = words_embeddings['levenslang']
+
+cos_sim = dot(a, b)/(norm(a)*norm(b))
