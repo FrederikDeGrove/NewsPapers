@@ -6,8 +6,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import FeatureUnion
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.ensemble import GradientBoostingClassifier
+#from sklearn.metrics import mean_absolute_error
 import numpy as np
 from sklearn.model_selection import GridSearchCV
 import matplotlib.pyplot as plt
@@ -57,7 +57,7 @@ features = [i for i in dat.columns.values if i not in ['views']]
 # numeric_features = [i for i in dat.columns.values if i  not in ['title', 'views']]
 target = 'views'
 
-X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.2, random_state=123)
+X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
 X_train.head()
 
 # from https://www.kaggle.com/baghern/a-deep-dive-into-sklearn-pipelines
@@ -146,7 +146,7 @@ feature_processing = Pipeline([('feats', feats)])
 
 pipeline = Pipeline([
                 ('features',feats),
-                ('classifier', GradientBoostingRegressor(loss='lad'))
+                ('classifier', GradientBoostingClassifier(n_iter_no_change=10))
             ])
 
 #pipeline.fit(X_train, y_train)
@@ -160,13 +160,13 @@ hyperparameters = {'features__text__vectorizer__max_features' : [1000, 5000, 100
                    'classifier__subsample': [0.7, 1]
                   }
 
-from sklearn.metrics import make_scorer
-MAE_scorer = make_scorer(mean_absolute_error, greater_is_better=False)
+#from sklearn.metrics import make_scorer
+#MAE_scorer = make_scorer(mean_absolute_error, greater_is_better=False)
 
-clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True, scoring=MAE_scorer)
+#clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True, scoring=MAE_scorer)
+clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
 clf.fit(X_train, y_train)
-
-pd.DataFrame(clf.cv_results_).to_csv("boosting_regression_test.csv")
+pd.DataFrame(clf.cv_results_).to_csv("boosting.csv")
 
 clf.best_params_
 clf.cv_results_

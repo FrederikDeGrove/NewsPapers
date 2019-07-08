@@ -56,6 +56,8 @@ else:
     dat.drop(['Unnamed: 0'], inplace=True, axis=1)
     dat.title = dat.title.astype("str")
 
+
+
 ###define cutoff
 cutoff = dat.views.median()
 
@@ -67,9 +69,10 @@ target = 'views'
 X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
 X_train.head()
 
-#y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
-#y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
-#y_train = np.asarray(y_train_dich)
+y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
+y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
+
+y_train = np.asarray(y_train_dich)
 
 #create sequence
 
@@ -157,8 +160,8 @@ param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentil
               #'nodes_layer_2': [2, 10, 30, 100, 300],
               'learning-rate': [.001]
               }
-'''
 
+'''
 param_grid = {'sentence_length': [17],
               'batchSize': [5000],
               'embedding_regularization': [.00001],
@@ -168,7 +171,7 @@ param_grid = {'sentence_length': [17],
               }
 '''
 
-filename = "Sentence_Embedding_RAW_MAE.csv"
+filename = "Sentence_Embedding_RAW.csv"
 
 try:
     with open(filename, 'r') as fh:
@@ -178,7 +181,7 @@ except:
 
 grid_full = list(ParameterGrid(param_grid))
 
-grid = grid_full
+grid = grid_full[28:]
 
 for grindex, combination in enumerate(grid):
     #print(grindex)
@@ -191,7 +194,7 @@ for grindex, combination in enumerate(grid):
     #layer2_size = combination['nodes_layer_2']
     opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
     data = pad_sequences(sequences, maxlen=sentence_length)
-    modelname = "embeddings_RAW_MAE_" + str(grindex) + ".hdf5"
+    modelname = "embeddings_RAW_" + str(grindex) + ".hdf5"
 
     #################################################
     model = Sequential()
@@ -204,7 +207,7 @@ for grindex, combination in enumerate(grid):
 
     callback_list = [
         callbacks.EarlyStopping(
-            monitor='acc', # 'acc'
+            monitor='loss', # 'acc'
             patience=10,
             restore_best_weights=True
         ),
@@ -222,7 +225,7 @@ for grindex, combination in enumerate(grid):
         )
     ]
 
-    model.compile(optimizer=opti, loss='mae', metrics=['mae', 'acc']) #loss='binary_crossentropy'
+    model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc']) #loss='binary_crossentropy'
     model.summary()
 
     history = model.fit(data, y_train,
@@ -241,11 +244,10 @@ for grindex, combination in enumerate(grid):
     number_parameters = history.model.count_params()
     number_layers = len(history.model.layers)
     #write to grid information
-    combination['max_mean_absolute_error'] = round(max(history.history['mean_absolute_error']), 4)
-    combination['mean_mean_absolute_error'] = round(np.mean(history.history['mean_absolute_error']), 4)
-    combination['val_max_absolute_error'] = round(max(history.history['val_mean_absolute_error']), 4)
-    combination['val_mean_absolute_error'] = round(np.mean(history.history['val_mean_absolute_error']), 4)
-
+    #combination['max_mean_absolute_error'] = round(max(history.history['mean_absolute_error']), 4)
+    #combination['mean_mean_absolute_error'] = round(np.mean(history.history['mean_absolute_error']), 4)
+    #combination['val_max_absolute_error'] = round(max(history.history['val_mean_absolute_error']), 4)
+    #combination['val_mean_absolute_error'] = round(np.mean(history.history['val_mean_absolute_error']), 4)
     combination['max_accuracy'] = round(max(acc),4)
     combination['mean_accuracy'] = round(np.mean(acc),4)
     combination['max_val_acc'] = round(max(val_acc),4)
