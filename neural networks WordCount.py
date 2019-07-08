@@ -54,7 +54,6 @@ cutoff = dat.views.median()
 # preparing data
 
 X_train, X_test, y_train, y_test = train_test_split(dat['title'], dat['views'], test_size=0.15, random_state=123)
-
 y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
 y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
 y_train = np.asarray(y_train_dich)
@@ -73,7 +72,8 @@ max_words = 5350    # refer to the data exploration file to get this number
 #x_test = tokenizer.sequences_to_matrix(X_test)
 
 
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+vect2 = CountVectorizer(max_features=max_words)
 vect = TfidfVectorizer(max_features=max_words)
 
 #from sklearn.feature_extraction.text import CountVectorizer
