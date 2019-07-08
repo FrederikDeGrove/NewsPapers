@@ -6,7 +6,7 @@ from sklearn.manifold import TSNE
 
 
 # read in the data from the saved datafile
-dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
+dat = pd.read_csv("HLN_ML_data_final_NN_final.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
 
 dat.title = dat.title.astype("str")
@@ -27,23 +27,22 @@ to plot the above with red circles, you would issue
 '''Index([u'views', u'title', u'hasNamedEntity', u'hasNumbers', u'title_lengths'], dtype='object')'''
 
 
-plt.xlabel('X')
-plt.ylabel('views')
-plt.title('Plot of Number of Views')
-plt.plot(dat.views, 'bo')
-plt.plot(dat.views, 'k')
-plt.plot(dat.views, 'k+')
-
-plt.hist(dat.views)
-
-plt.plot(dat.title_lengths, dat.views, 'bo')
+dat.views.describe().apply(lambda x: format(x, 'f'))
 
 
+fig = plt.figure(figsize=(15, 15), dpi=80)
+ax1 = fig.add_subplot(1,1,1)
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+ax1.spines['bottom'].set_visible(False)
+ax1.spines['left'].set_visible(False)
+ax1.set_title('Distribution of views within 90th percentile (median indicated in green)')
+plt.hist(dat.views[dat.views < dat.views.quantile(.90)], bins = 100, color="lightblue")
+plt.axvline(dat.views.quantile(.50), color = 'green')
+#plt.axvline(dat.views.mean(), color = 'red')
 
-plt.plot(dat.views, 'bo')
-plt.axhline(500000)
 
-plt.plot(dat.views[dat.views < 50000])
+plt.hist(dat.views[dat.views < 50000], bins = 100)
 
 dat.boxplot('views')
 plot.show()

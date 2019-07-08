@@ -108,7 +108,7 @@ else:
 
 
 dat = []
-#with open(location, encoding="utf-8") as csv_file:
+#with open(location) as csv_file:
 with codecs.open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:

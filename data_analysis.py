@@ -36,17 +36,12 @@ def plot_roc_curve(fpr, tpr, auc):
 
 
 # read in the data from the saved datafile
-#dat = pd.read_csv("HLN_ML_data_final.csv",  index_col=None)
-dat = pd.read_csv("HLN_ML_data_final_NN.csv",  index_col=None)
-
-
+dat = pd.read_csv("HLN_ML_data_final_NN_final.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
-
 dat.title = dat.title.astype("str")
-#dat.subjectivity = dat.subjectivity.astype("float64")
-#dat.polarity = dat.polarity.astype("float64")
+dat.subjectivity = dat.subjectivity.astype("float64")
+dat.polarity = dat.polarity.astype("float64")
 dat.title_lengths = dat.title_lengths.astype("float64")
-
 
 
 ###########################################################
@@ -61,7 +56,7 @@ cutoff = dat.views.median()
 #preparing data
 
 features = [i for i in dat.columns.values if i not in ['views']]
-#numeric_features = [i for i in dat.columns.values if i  not in ['title', 'views']]
+# numeric_features = [i for i in dat.columns.values if i  not in ['title', 'views']]
 target = 'views'
 
 X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
@@ -70,13 +65,9 @@ X_train.head()
 y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
 y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
 
-#y_train_log = np.log(y_train)
-#y_test_log = np.log(y_test)
-
-
 
 # from https://www.kaggle.com/baghern/a-deep-dive-into-sklearn-pipelines
-class TextSelector(BaseEstimator, TransformerMixin):
+class TextSelector(BaseEstimator,TransformerMixin):
     """
     Transformer to select a single column from the data frame to perform additional transformations on
     Use on text columns in the data
@@ -112,59 +103,59 @@ text = Pipeline([
                 ('selector', TextSelector(key='title')),
                 ('vectorizer', CountVectorizer(analyzer ="word"))
             ])
-#text.fit_transform(X_train)
+# text.fit_transform(X_train)
 
 length = Pipeline([
                 ('selector', NumberSelector(key='title_lengths')),
                 ('standard', StandardScaler())
             ])
-#length.fit_transform(X_train)
+# length.fit_transform(X_train)
 
 numbers = Pipeline([
                 ('selector', NumberSelector(key='hasNumbers')),
                 ('standard', OneHotEncoder(categories='auto'))
             ])
-#numbers.fit_transform(X_train)
+# numbers.fit_transform(X_train)
 
 entities = Pipeline([
                 ('selector', NumberSelector(key='hasNamedEntity')),
                 ('standard', OneHotEncoder(categories='auto'))
             ])
-#entities.fit_transform(X_train)
+# entities.fit_transform(X_train)
 
 polarity = Pipeline([
                 ('selector', NumberSelector(key='polarity')),
                 ('standard', StandardScaler())
             ])
-#polarity.fit_transform(X_train)
+# polarity.fit_transform(X_train)
 
 subjectivity = Pipeline([
                 ('selector', NumberSelector(key='subjectivity')),
                 ('standard', StandardScaler())
             ])
 
-#subjectivity.fit_transform(X_train)
+# subjectivity.fit_transform(X_train)
 
 feats = FeatureUnion([
                 ('text', text),
-                #('length', length),
-                #('numbers', numbers),
-                #('entities', entities),
-                #('polarity', polarity),
-                #('subjectivity', subjectivity)
+                ('length', length),
+                ('numbers', numbers),
+                ('entities', entities),
+                ('polarity', polarity),
+                ('subjectivity', subjectivity)
             ])
 
-#the next step combines all features in one
+# the next step combines all features in one
 feature_processing = Pipeline([('feats', feats)])
 
-#feature_processing.fit_transform(X_train)
+# feature_processing.fit_transform(X_train)
 
 pipeline = Pipeline([
                 ('features',feats),
                 ('classifier', XGBClassifier(objective='binary:logistic', booster='gbtree'))
             ])
 
-#pipeline.get_params().keys() #variables to tweak
+# pipeline.get_params().keys() #variables to tweak
 
 pipeline.fit(X_train, y_train_dich)
 preds = pipeline.predict(X_test)
@@ -172,15 +163,17 @@ probs = pipeline.predict_proba(X_test)
 
 
 print(metrics.balanced_accuracy_score(y_test_dich, preds))
+print(metrics.accuracy_score(y_test_dich, preds))
 print(metrics.average_precision_score(y_test_dich, preds))
 print(metrics.f1_score(y_test_dich, preds))
 
 
-hyperparameters = {'features__text__vectorizer__max_features' : [11000],
+hyperparameters = {'features__text__vectorizer__max_features' : [500, 2000, 5000],
                    'features__text__vectorizer__max_df': [0.8],
-                   'classifier__max_depth': [100],
+                   'classifier__max_depth': [6, 50, 100],
                    'classifier__learning_rate': [0.3],
                    'classifier__subsample' : [0.7]
+                   #'classifier__reg_alpha' : [.00001, .000001]
                    #'classifier__min_samples_leaf': [1,2]
                    #'features__text__vectorizer__ngram_range': [(1,1), (1,2)],
                   }
@@ -189,19 +182,46 @@ clf.fit(X_train, y_train_dich)
 
 clf.best_params_
 
-#refit on test data using best settings to obtain final results
+# refit on test data using best settings to obtain final results
 clf.refit
 preds = clf.predict(X_test)
 probs = clf.predict_proba(X_test)
 
 print(metrics.balanced_accuracy_score(y_test_dich, preds))
+print(metrics.accuracy_score(y_test_dich, preds))
 print(metrics.average_precision_score(y_test_dich, preds))
 print(metrics.f1_score(y_test_dich, preds))
 
 clf.best_estimator_
 
-pd.DataFrame(clf.cv_results_).to_csv("fifth_run.csv")
+pd.DataFrame(clf.cv_results_).to_csv("XGBOOST_full.csv")
 
+feature_importance =  clf.best_estimator_.named_steps["classifier"].feature_importances_
+#feature_importance.sort()
+fig = plt.figure(figsize=(15, 15), dpi=80)
+ax1 = fig.add_subplot(1,1,1)
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+ax1.spines['bottom'].set_visible(False)
+ax1.spines['left'].set_visible(False)
+plt.hist(feature_importance, bins = 100, color ="lightblue")
+
+
+
+
+
+fscores = clf.best_estimator_.named_steps["classifier"].get_booster().get_fscore()
+
+k = np.array(fscores.values())
+pd.DataFrame(k).describe()
+
+fig = plt.figure(figsize=(15, 15), dpi=80)
+ax1 = fig.add_subplot(1,1,1)
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+ax1.spines['bottom'].set_visible(False)
+ax1.spines['left'].set_visible(False)
+plt.hist(k, bins = 50, color = "lightblue")
 
 #ROC curve
 # Compute ROC curve and ROC area for each class

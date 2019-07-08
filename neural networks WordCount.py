@@ -40,10 +40,18 @@ def plot_roc_curve(fpr, tpr, auc):
 ###########################################################
 ###########################################################
 
+raw = True
+
 # read in the data from the saved datafile
-dat = pd.read_csv("HLN_ML_data_final_NN.csv", index_col=None)
-dat.drop(['Unnamed: 0'], inplace=True, axis=1)
-dat.title = dat.title.astype("str")
+
+if raw == False:
+    dat = pd.read_csv("HLN_ML_data_final_NN.csv", index_col=None)
+    dat.drop(['Unnamed: 0'], inplace=True, axis=1)
+    dat.title = dat.title.astype("str")
+else:
+    dat = pd.read_csv("raw_HLN.csv", index_col=None)
+    dat.drop(['Unnamed: 0'], inplace=True, axis=1)
+    dat.title = dat.title.astype("str")
 
 
 
