@@ -18,6 +18,7 @@ import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 import datetime
 import csv
+import keras
 
 ## custom function
 #source https://stackoverflow.com/questions/41032551/how-to-compute-receiving-operating-characteristic-roc-and-auc-in-keras
@@ -152,14 +153,31 @@ to feed them to the network. So it makes sense to keep those methods separate.
 from Descriptives import sentences_raw
 
 
+param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+              'batchSize': [1000, 5000],
+              'embedding_regularization': [.00001, .0001],
+              'embedding_dimensions': [2, 10, 50, 100],
+              'nodes_LSTM' : [10, 100],
+              'LSTM_dropout':  [0.2, 0.5],
+              'LTSM_recurrent_dropout': [0.2, 0.5],
+              #'nodes_layer_2': [10, 100],
+              #'layer2_regularziation' : [.00001],
+              'learning-rate': [.001]
+              }
 
+
+
+'''
 param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
               'batchSize': [128, 1000, 5000, 10000],
               'embedding_regularization': [.00001, .0001],
-              'embedding_dimensions': [2, 10, 50, 100, 300, 500],
+              'embedding_dimensions': [2, 10, 50, 100, 300],
               #'nodes_layer_2': [2, 10, 30, 100, 300],
               'learning-rate': [.001]
+              
               }
+'''
+
 
 '''
 param_grid = {'sentence_length': [17],
@@ -171,7 +189,7 @@ param_grid = {'sentence_length': [17],
               }
 '''
 
-filename = "Sentence_Embedding_RAW.csv"
+filename = "Sentence_Embedding_RAW_LSTM_1.csv"
 
 try:
     with open(filename, 'r') as fh:
@@ -181,7 +199,9 @@ except:
 
 grid_full = list(ParameterGrid(param_grid))
 
-grid = grid_full[28:]
+startpoint = 0
+
+grid = grid_full[startpoint:]
 
 for grindex, combination in enumerate(grid):
     #print(grindex)
@@ -192,22 +212,27 @@ for grindex, combination in enumerate(grid):
     regularization = combination['embedding_regularization']
     output_d = combination['embedding_dimensions']
     #layer2_size = combination['nodes_layer_2']
+    #layer2_regularization = combination['layer2_regularziation']
     opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
     data = pad_sequences(sequences, maxlen=sentence_length)
-    modelname = "embeddings_RAW_" + str(grindex) + ".hdf5"
+    LSTM_nodes = combination['nodes_LSTM']
+    LSTM_dropout = combination['LSTM_dropout']
+    LSTM_recurrent_dropout = combination['LTSM_recurrent_dropout']
+    modelname = "embeddings_RAW_LSTM_1_" + str(startpoint) + ".hdf5"
+
 
     #################################################
     model = Sequential()
-    #if embedding = True:
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
-    #model.add(LSTM(32))
-    model.add(Flatten())
-    #model.add(Dense(layer2_size , activation='relu'))
+    #model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
+    model.add(LSTM(LSTM_nodes, dropout=LSTM_dropout, recurrent_dropout=LSTM_recurrent_dropout))
+    #model.add(Flatten())
+    #model.add(Dense(layer2_size , activation='relu', kernel_regularizer=regularizers.l1(layer2_regularization)))
     model.add(Dense(1, activation='sigmoid'))
 
     callback_list = [
         callbacks.EarlyStopping(
-            monitor='loss', # 'acc'
+            monitor='val_loss',
             patience=10,
             restore_best_weights=True
         ),
@@ -243,21 +268,13 @@ for grindex, combination in enumerate(grid):
     val_loss = history.history['val_loss']
     number_parameters = history.model.count_params()
     number_layers = len(history.model.layers)
-    #write to grid information
-    #combination['max_mean_absolute_error'] = round(max(history.history['mean_absolute_error']), 4)
-    #combination['mean_mean_absolute_error'] = round(np.mean(history.history['mean_absolute_error']), 4)
-    #combination['val_max_absolute_error'] = round(max(history.history['val_mean_absolute_error']), 4)
-    #combination['val_mean_absolute_error'] = round(np.mean(history.history['val_mean_absolute_error']), 4)
+
     combination['max_accuracy'] = round(max(acc),4)
     combination['mean_accuracy'] = round(np.mean(acc),4)
     combination['max_val_acc'] = round(max(val_acc),4)
     combination['mean_val_acc'] = round(np.mean(val_acc),4)
     combination['sd_val_acc'] = round(np.std(val_acc),4)
     combination['epoch_where_max_val_acc_reached'] = history.history['val_acc'].index(max(history.history['val_acc']))
-    #combination['max_val_auroc'] = round(max(history.history['val_auroc']), 4)
-    #combination['mean_auroc'] = round(np.mean(history.history['auroc']),4)
-    #combination['sd_auroc'] = round(np.std(history.history['auroc']),4)
-    #combination['epoch_where_max_auc_reached'] = history.history['auroc'].index(max(history.history['auroc']))
     combination['number_parameters'] = number_parameters
     combination['number_layers'] = number_layers
     combination['date_logged'] = date_start
@@ -276,6 +293,7 @@ for grindex, combination in enumerate(grid):
             dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
             dict_writer.writeheader()
             dict_writer.writerows([gridwrite])
+    startpoint += 1
 
 '''
 model.save("test_embdding_model.hdf5")
