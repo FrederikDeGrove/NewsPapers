@@ -3,17 +3,20 @@ import csv
 import json
 import codecs
 from nltk.corpus import stopwords
+import string
 import re
+import sys
 import copy
 import pprint
 from collections import Counter
+from nltk.tokenize import RegexpTokenizer
 import pattern
 import pattern.nl
 import unidecode
 
 
 
-#setting some options for pandas views
+#setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
@@ -108,12 +111,12 @@ else:
 
 
 dat = []
-#with open(location) as csv_file:
-with codecs.open(location, encoding="utf-8") as csv_file:
+with open(location, encoding="utf-8") as csv_file:
+#with codecs.open(location, encoding="utf-8") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter='\t')
     for row in csv_reader:
         #row = [s.encode("utf-8") for s in row]
-        if len(row) == 10: #check if each row splits in 10 columns
+        if len(row) == 10:
             dat.append(row)
         else:
             print("NOK")
@@ -151,6 +154,8 @@ for index, n in enumerate(temp_text):
 title_backup = copy.deepcopy(title)
 
 #add categories
+if not write_raw:
+    p['category'] = pd.DataFrame([i[1][1:] for i in dat])
 p['category'] = pd.DataFrame([i[1][1:] for i in dat])
 
 
@@ -164,99 +169,113 @@ p['category'] = pd.DataFrame([i[1][1:] for i in dat])
 #                                                                 #
 ###################################################################
 
-hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
-hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
-hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
-numberOfWords = [len(i.split(" ")) for i in title]
+if not write_raw:
+    hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
+    hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
+    hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
+    numberOfWords = [len(i.split(" ")) for i in title]
 
 
 ###################################################################
 #           perform text manipulations                            #
-#                                                                 #
+#                  1.                                                #
 #                                                                 #
 #                                                                 #
 #                                                                 #
 #                                                                 #
 #                                                                 #
 ###################################################################
+if write_raw:
+    title = [replace_strange_symbols(i) for i in title]  # replace letters such as é with e
+    to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : '', '\r' : ' ', '\n' : ' ', '?' : ' ?', '!': ' !'}) # replace ' and " with white space and similar operations
+    title = [' '.join(i.split()) for i in title]  # remove whitespaces
+else:
+    # perform a number of text manipulations on titles
+    title = [replace_strange_symbols(i) for i in title]  # replace letters such as é with e
+    to_replace = dict({"'": ' ', '"': ' ', '-': '', '&': '', '\r': ' ', '\n': ' '})
+    title = [replace_characters(to_replace, i) for i in title]
+    title = [remove_words_of_length(i, length=1) for i in title]  # REMOVE ALL WORDS SHORTER than 1 char
+    title = [processNumbers(i) for i in title]  # transform all numbers in the text to specific word representations
+    sentiment_score = [pattern.nl.sentiment(i) for i in title]  # compute sentiment scores
+    polarity = [i[0] for i in sentiment_score]  # polarity score
+    subjectivity = [i[1] for i in sentiment_score]  # subjectivity score
+    '''
+    for some reason, try to run this first before running customLemmatize function if it doesn't work
+    import pattern.nl
+    pattern.nl.parse('dit is een test')
+    pattern.text.Sentence(pattern.nl.parse('dit is een test'))
+    pattern.text.Sentence(pattern.nl.parse('dit is een test')).lemmata
+    '''
+    title = [customLemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
+    title = [setLowerCase(i) for i in title] #set all to lowercase
+    title = [keepOnlyNumCharAndOther(i) for i in title] #revove everything but numbers, letters and ! and ?
+    title = [removeStopWords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
+    title = [' '.join(i.split()) for i in title] #remove whitespaces
 
-# perform a number of text manipulations on titles
-title = [replace_strange_symbols(i) for i in title] # replace letters with tremas
-to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : '', '\r' : ' ', '\n' : ' '}) # replace ' and " with white space and similar operations
-title = [replace_characters(to_replace, i) for i in title]
-title = [remove_words_of_length(i, length= 1) for i in title] #REMOVE ALL WORDS SHORTER than 1 char
-title = [processNumbers(i) for i in title] #transform all numbers in the text to specific word representations
-#sentiment_score = [pattern.nl.sentiment(i) for i in title] #compute sentiment scores
-#polarity = [i[0] for i in sentiment_score] #polarity score
-#subjectivity = [i[1] for i in sentiment_score] #subjectivity score
-
-'''
-for some reason, try to run this first before running customLemmatize function if it doesn't work
-import pattern.nl
-pattern.nl.parse('dit is een test')
-pattern.text.Sentence(pattern.nl.parse('dit is een test'))
-pattern.text.Sentence(pattern.nl.parse('dit is een test')).lemmata
-'''
-title = [customLemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
-
-title = [setLowerCase(i) for i in title] #set all to lowercase
-title = [keepOnlyNumCharAndOther(i) for i in title] #revove everything but numbers, letters and ! and ?
-title = [removeStopWords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
-title = [' '.join(i.split()) for i in title] #remove whitespaces
 title_backup2 = title
 
-p['hasNamedEntity'] =hasNamedEntity
-p['hasNumbers'] = hasNumbers
-p['hasSubTitle'] = hasSubTitle
-#p['polarity'] = polarity
-#p['subjectivity'] = subjectivity
-p['title_lengths'] = numberOfWords
+if not write_raw:
+    p['hasNamedEntity'] =hasNamedEntity
+    p['hasNumbers'] = hasNumbers
+    p['hasSubTitle'] = hasSubTitle
+    p['polarity'] = polarity
+    p['subjectivity'] = subjectivity
+    p['title_lengths'] = numberOfWords
+
 p['title'] = title
 
+
 # remmove duplicates
-len(p) - p.title.nunique() # check if there are duplicates
-p.drop_duplicates(subset=['title'], keep='last', inplace=True)
+print("number of duplicates: ", len(p) - p.shortId.nunique()) # check if there are duplicates
+p.drop_duplicates(subset=['shortId'], keep='last', inplace=True)
 
 
 #have a quick check on the words that happen most
 all_words = [word for sentence in title for word in sentence.split(' ')]
 unique_words = sorted(list(set(all_words)))
-print("%s words total, with a vocabulary size of %s" % (len(all_words), len(unique_words)))
+#print("%s words total, with a vocabulary size of %s" % (len(all_words), len(unique_words)))
 count_all_words = Counter(all_words)
-pprint.pprint(count_all_words.most_common(50))
-
-#we will use the those words
-vals = pd.DataFrame([i for i in count_all_words.values()])
-vals.columns = ['counter']
-number_to_include = np.percentile(vals.counter, 95)
-max_words = len(vals[vals.counter >= number_to_include])
+#pprint.pprint(count_all_words.most_common(50))
 
 # write away final data table to be used for analyses
-all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'category']]
-
+if not write_raw:
+    all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'category', 'hasSubTitle', 'polarity', 'subjectivity']]
+else:
+    all_data = p[['views', 'title']]
 
 if newspaper == "DM":
-    all_data.to_csv("DM_ML_data_final_NN_B.csv")
-    s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
-    s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_DM_NN_B.csv")
+    if not write_raw:
+        all_data.to_csv("DM_ML_data_final_NN_final.csv")
+        s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+        s.columns = ['word', 'counts']
+        s.to_csv("all_words_counts_DM_NN_final.csv")
 
-    if write_raw:
+    else:
         # raw data for neural nets
-        view = [i[9] for i in dat]
-        raw = pd.DataFrame(title_backup, view).reset_index()
-        raw.columns = ['views', 'title']
-        raw.to_csv("raw_DM.csv")
+        #view = [i[9] for i in dat]
+        #raw = pd.DataFrame(title_backup, view).reset_index()
+        #raw.columns = ['views', 'title']
+        #raw.to_csv("raw_DM.csv")
+        all_data.to_csv("raw_DM_final.csv")
+        s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+        s.columns = ['word', 'counts']
+        s.to_csv("all_words_counts_DM_RAW_NN_final.csv")
+
 
 else:
-    all_data.to_csv("HLN_ML_data_final_NN_B.csv")
-    s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
-    s.columns = ['word', 'counts']
-    s.to_csv("all_words_counts_HLN_NN_B.csv")
+    if not write_raw:
+        all_data.to_csv("HLN_ML_data_final_NN_final.csv")
+        s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+        s.columns = ['word', 'counts']
+        s.to_csv("all_words_counts_HLN_NN_final.csv")
 
-    if write_raw:
+    else:
         #raw data for neural nets
-        view = [i[9] for i in dat]
-        raw = pd.DataFrame(title_backup, view).reset_index()
-        raw.columns = ['views', 'title']
-        raw.to_csv("raw_HLN.csv")
+        #view = [i[9] for i in dat]
+        #raw = pd.DataFrame(title_backup, view).reset_index()
+        #raw.columns = ['views', 'title']
+        #raw.to_csv("raw_HLN.csv")
+        all_data.to_csv("raw_HLN_final.csv")
+        s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
+        s.columns = ['word', 'counts']
+        s.to_csv("all_words_counts_HLN_NN_RAW_final.csv")
