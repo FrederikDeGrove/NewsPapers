@@ -59,71 +59,39 @@ else:
 
 
 
-###define cutoff
+###############################################################
+#                                                             #
+#               setting data right                            #
+#                                                             #
+###############################################################
 cutoff = dat.views.median()
-
-#preparing data
-
 features = [i for i in dat.columns.values if i in ['title']]
 target = 'views'
-
 X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
 X_train.head()
-
 y_train_dich = [0 if i <= cutoff else 1 for i in y_train]
 y_test_dich = [0 if i <= cutoff else 1 for i in y_test]
-
 y_train = np.asarray(y_train_dich)
-
 #create sequence
-
 text = X_train.title
 text = text.values.tolist()
-
-#max_words = 5350  # refer to the data exploration file to get this number
-#
-
-'''
-if raw:
-    tokenizer = Tokenizer(num_words=max_words, lower=True, filters='@\t\n')
-else:
-    tokenizer = Tokenizer(num_words=max_words, filters='+@&', lower=False)
-'''
-
-
-'''num_words: the maximum number of words to keep, based
-    on word frequency. Only the most common `num_words-1` words will
-    be kept.
-'''
-
-#we don't want to delete any words, so max_words is irrelevant...
 if raw:
     tokenizer = Tokenizer(filters='', lower=True)
 else:
     tokenizer = Tokenizer(filters='', lower=False)
-
-
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-tokenizer.fit_on_texts(texts=text) #important, this tokenizer should also be used to
-#convert test data to sequences
+tokenizer.fit_on_texts(texts=text) #important, this tokenizer should also be used to convert test data to sequences
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 sequences = tokenizer.texts_to_sequences(X_train.title)
 word_index = tokenizer.word_index
 print('found %s unique tokens.' % len(word_index))
-
 max_words = len(word_index)
-
 inv_map = {v: k for k, v in word_index.iteritems()}
-
 #write away words and their sequence code
 #with open('words_RAW_HLN.csv', 'wb') as f:  # If using python 3 use 'w'
 #    w = csv.DictWriter(f, inv_map.keys())
 #    w.writeheader()
 #    w.writerow(inv_map)
-
-
-
 '''
 https://stackoverflow.com/questions/51956000/what-does-keras-tokenizer-method-exactly-do
 
@@ -142,20 +110,19 @@ to feed them to the network. So it makes sense to keep those methods separate.
 
 ###############################################################
 #                                                             #
-#               SETTING PARAMETERS                            #
+#               defining hyperparameters                      #
 #                                                             #
 ###############################################################
 
 # constructing a parameter grid
 
-# SENTENCES_RAW COMES FROM THE DESCRIPTIVE OPERATIONS
-
+# SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
 from Descriptives import sentences_raw
+
 network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
+
 type = network_types[0]
-startpoint = 0
-
-
+startpoint = 0 #if some error occurs we can pick up where we left
 
 if type =='feedforward_embed':
     averaging = False
@@ -165,7 +132,7 @@ if type =='feedforward_embed':
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001]
+                  'learning-rate': [.01]
                   }
 
 elif type == 'feedforward_embed_hidden':
@@ -176,7 +143,7 @@ elif type == 'feedforward_embed_hidden':
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001]
+                  'learning-rate': [.01]
                   'nodes_layer_2': [10, 100],
                   'layer2_regularziation' : [.00001]
                   }
@@ -189,7 +156,7 @@ elif type == 'feedforward_embed_average':
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001]
+                  'learning-rate': [.01]
                   }
 
 elif  type == 'feedforward_embed_average_hidden':
@@ -200,7 +167,7 @@ elif  type == 'feedforward_embed_average_hidden':
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001],
+                  'learning-rate': [.01],
                   'nodes_layer_2': [10, 100],
                   'layer2_regularziation': [.00001]
                   }
@@ -213,7 +180,7 @@ elif type == 'LSTM_1':
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001],
+                  'learning-rate': [.01],
                   'nodes_LSTM': [10, 100],
                   'LSTM_dropout': [0.2, 0.5],
                   'LTSM_recurrent_dropout': [0.2, 0.5]
@@ -221,13 +188,13 @@ elif type == 'LSTM_1':
 
 else:
     averaging = False
-    hidden_layer = False
+    hidden_layer = True
     LSTM = True
     param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
                   'batchSize': [128, 1000, 5000, 10000],
                   'embedding_dimensions': [2, 10, 50, 100, 300],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.001]
+                  'learning-rate': [.01]
                   'nodes_LSTM': [10, 100],
                   'LSTM_dropout': [0.2, 0.5],
                   'LTSM_recurrent_dropout': [0.2, 0.5],
@@ -238,6 +205,7 @@ else:
 
 filename = type + ".csv"
 
+#if logging already started we just add to the file.
 try:
     with open(filename, 'r') as fh:
         write_to_existing_csv_file = True
@@ -245,9 +213,7 @@ except:
     write_to_existing_csv_file = False
 
 grid_full = list(ParameterGrid(param_grid))
-
-
-grid = grid_full[startpoint:]
+grid = grid_full[startpoint:] #this allows us to continue if we left off somewhere
 
 for grindex, combination in enumerate(grid):
     date_start = datetime.datetime.now().date()
@@ -259,7 +225,9 @@ for grindex, combination in enumerate(grid):
     if hidden_layer == True:
         layer2_size = combination['nodes_layer_2']
         layer2_regularization = combination['layer2_regularziation']
-    opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
+    #opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
+    opti = optimizers.adagrad(lr=combination['learning-rate']) #adagrad seems a good choice for all the different words we are using?
+    # https://www.reddit.com/r/MachineLearning/comments/3i6fp9/what_optimization_methods_work_best_for_lstms/
     data = pad_sequences(sequences, maxlen=sentence_length, padding="post")
     if LSTM == True:
         LSTM_nodes = combination['nodes_LSTM']
@@ -294,11 +262,12 @@ for grindex, combination in enumerate(grid):
             save_best_only=True
             ),
 
-        callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=.1,
-            patience=10
-        )
+        #as we use adagrad, this is not needed (??)
+        #callbacks.ReduceLROnPlateau(
+        #    monitor='val_loss',
+        #    factor=.1,
+        #    patience=10
+        #)
     ]
 
     model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc']) #loss='binary_crossentropy'

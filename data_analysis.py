@@ -169,7 +169,7 @@ print(metrics.f1_score(y_test_dich, preds))
 
 
 hyperparameters = {'features__text__vectorizer__max_features' : [500, 2000, 5000],
-                   'features__text__vectorizer__max_df': [0.8],
+                   #'features__text__vectorizer__max_df': [0.8],
                    'classifier__max_depth': [6, 50, 100],
                    'classifier__learning_rate': [0.3],
                    'classifier__subsample' : [0.7]
@@ -194,7 +194,7 @@ print(metrics.f1_score(y_test_dich, preds))
 
 clf.best_estimator_
 
-pd.DataFrame(clf.cv_results_).to_csv("XGBOOST_full.csv")
+pd.DataFrame(clf.cv_results_).to_csv("XGBOOST_full_final.csv")
 
 feature_importance =  clf.best_estimator_.named_steps["classifier"].feature_importances_
 #feature_importance.sort()
