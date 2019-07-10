@@ -151,45 +151,92 @@ to feed them to the network. So it makes sense to keep those methods separate.
 # SENTENCES_RAW COMES FROM THE DESCRIPTIVE OPERATIONS
 
 from Descriptives import sentences_raw
-
-
-param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-              'batchSize': [1000, 5000],
-              'embedding_regularization': [.00001, .0001],
-              'embedding_dimensions': [2, 10, 50, 100],
-              'nodes_LSTM' : [10, 100],
-              'LSTM_dropout':  [0.2, 0.5],
-              'LTSM_recurrent_dropout': [0.2, 0.5],
-              #'nodes_layer_2': [10, 100],
-              #'layer2_regularziation' : [.00001],
-              'learning-rate': [.001]
-              }
+network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
+type = network_types[0]
+startpoint = 0
 
 
 
-'''
-param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-              'batchSize': [128, 1000, 5000, 10000],
-              'embedding_regularization': [.00001, .0001],
-              'embedding_dimensions': [2, 10, 50, 100, 300],
-              #'nodes_layer_2': [2, 10, 30, 100, 300],
-              'learning-rate': [.001]
-              
-              }
-'''
+if type =='feedforward_embed':
+    averaging = False
+    hidden_layer = False
+    LSTM = False
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001]
+                  }
+
+elif type == 'feedforward_embed_hidden':
+    averaging = False
+    hidden_layer = True
+    LSTM = False
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001]
+                  'nodes_layer_2': [10, 100],
+                  'layer2_regularziation' : [.00001]
+                  }
+
+elif type == 'feedforward_embed_average':
+    averaging = True
+    hidden_layer = False
+    LSTM = False
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001]
+                  }
+
+elif  type == 'feedforward_embed_average_hidden':
+    averaging = True
+    hidden_layer = True
+    LSTM = False
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001],
+                  'nodes_layer_2': [10, 100],
+                  'layer2_regularziation': [.00001]
+                  }
+
+elif type == 'LSTM_1':
+    averaging = False
+    hidden_layer = False
+    LSTM = True
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001],
+                  'nodes_LSTM': [10, 100],
+                  'LSTM_dropout': [0.2, 0.5],
+                  'LTSM_recurrent_dropout': [0.2, 0.5]
+                  }
+
+else:
+    averaging = False
+    hidden_layer = False
+    LSTM = True
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [128, 1000, 5000, 10000],
+                  'embedding_dimensions': [2, 10, 50, 100, 300],
+                  'embedding_regularization': [.00001, .0001],
+                  'learning-rate': [.001]
+                  'nodes_LSTM': [10, 100],
+                  'LSTM_dropout': [0.2, 0.5],
+                  'LTSM_recurrent_dropout': [0.2, 0.5],
+                  'nodes_layer_2': [10, 100],
+                  'layer2_regularziation': [.00001]
+                  }
 
 
-'''
-param_grid = {'sentence_length': [17],
-              'batchSize': [5000],
-              'embedding_regularization': [.00001],
-              'embedding_dimensions': [100, 300],
-              #'nodes_layer_2': [2, 10, 30, 100, 300],
-              'learning-rate': [.001]
-              }
-'''
-
-filename = "Sentence_Embedding_RAW_LSTM_1.csv"
+filename = type + ".csv"
 
 try:
     with open(filename, 'r') as fh:
@@ -199,35 +246,39 @@ except:
 
 grid_full = list(ParameterGrid(param_grid))
 
-startpoint = 0
 
 grid = grid_full[startpoint:]
 
 for grindex, combination in enumerate(grid):
-    #print(grindex)
     date_start = datetime.datetime.now().date()
     time_start = datetime.datetime.now()
     sentence_length = int(combination['sentence_length'])
     batch_size = combination['batchSize']
     regularization = combination['embedding_regularization']
     output_d = combination['embedding_dimensions']
-    #layer2_size = combination['nodes_layer_2']
-    #layer2_regularization = combination['layer2_regularziation']
+    if hidden_layer == True:
+        layer2_size = combination['nodes_layer_2']
+        layer2_regularization = combination['layer2_regularziation']
     opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
-    data = pad_sequences(sequences, maxlen=sentence_length)
-    LSTM_nodes = combination['nodes_LSTM']
-    LSTM_dropout = combination['LSTM_dropout']
-    LSTM_recurrent_dropout = combination['LTSM_recurrent_dropout']
-    modelname = "embeddings_RAW_LSTM_1_" + str(startpoint) + ".hdf5"
+    data = pad_sequences(sequences, maxlen=sentence_length, padding="post")
+    if LSTM == True:
+        LSTM_nodes = combination['nodes_LSTM']
+        LSTM_dropout = combination['LSTM_dropout']
+        LSTM_recurrent_dropout = combination['LTSM_recurrent_dropout']
+    modelname = "type" + str(startpoint) + ".hdf5"
 
 
     #################################################
     model = Sequential()
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
-    #model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
-    model.add(LSTM(LSTM_nodes, dropout=LSTM_dropout, recurrent_dropout=LSTM_recurrent_dropout))
-    #model.add(Flatten())
-    #model.add(Dense(layer2_size , activation='relu', kernel_regularizer=regularizers.l1(layer2_regularization)))
+    if averaging == True
+        model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
+    if LSTM == True
+        model.add(LSTM(LSTM_nodes, dropout=LSTM_dropout, recurrent_dropout=LSTM_recurrent_dropout))
+    if LSTM == False and averaging = False
+        model.add(Flatten())
+    if hidden_layer == True:
+        model.add(Dense(layer2_size , activation='relu', kernel_regularizer=regularizers.l1(layer2_regularization)))
     model.add(Dense(1, activation='sigmoid'))
 
     callback_list = [
