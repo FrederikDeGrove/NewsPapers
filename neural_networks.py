@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, accuracy_score
-import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 import datetime
 import csv
@@ -54,14 +53,14 @@ y_train = np.asarray(y_train_dich)
 text = X_train.title
 text = text.values.tolist()
 tokenizer = Tokenizer(filters='', lower=True)
-tokenizer.fit_on_texts(texts=text) #important, this tokenizer should also be used to convert test data to sequences
+tokenizer.fit_on_texts(texts=text) #important, this fitted tokenizer should also be used to convert test data to sequences
 sequences = tokenizer.texts_to_sequences(X_train.title)
 word_index = tokenizer.word_index
 print('found %s unique tokens.' % len(word_index))
 max_words = len(word_index)
 inv_map = {v: k for k, v in word_index.iteritems()}
 
-#write away words and their sequence code - needs to be done only once
+#write words and their sequence code - needs to be done only once
 write_words = False
 if write_words:
     with open('words_RAW_HLN.csv', 'wb') as f:  # If using python 3 use 'w'
@@ -282,7 +281,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
 
 # SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
 
-from Descriptives import sentences_raw
+from descriptive import sentences_raw
 
 network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
 

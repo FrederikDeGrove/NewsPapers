@@ -103,8 +103,7 @@ if newspaper == "DM":
 else:
     location = "hln_data_final.csv"
 
-#run this code first if using python2
-# deprecated in Python 3
+#run this code first if using python2 / deprecated in Python 3
 #import sys
 #reload(sys)
 #sys.setdefaultencoding('utf8')
@@ -153,11 +152,6 @@ for index, n in enumerate(temp_text):
 
 title_backup = copy.deepcopy(title)
 
-#add categories
-if not write_raw:
-    p['category'] = pd.DataFrame([i[1][1:] for i in dat])
-p['category'] = pd.DataFrame([i[1][1:] for i in dat])
-
 
 ###################################################################
 # now start working on the text to make it more processable       #
@@ -175,16 +169,6 @@ if not write_raw:
     hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
     numberOfWords = [len(i.split(" ")) for i in title]
 
-
-###################################################################
-#           perform text manipulations                            #
-#                  1.                                                #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
 if write_raw:
     title = [replace_strange_symbols(i) for i in title]  # replace letters such as é with e
     to_replace = dict({"'" : ' ', '"' : ' ', '-' : '', '&' : '', '\r' : ' ', '\n' : ' ', '?' : ' ?', '!': ' !'}) # replace ' and " with white space and similar operations
@@ -224,22 +208,17 @@ if not write_raw:
 
 p['title'] = title
 
-
 # remmove duplicates
 print("number of duplicates: ", len(p) - p.shortId.nunique()) # check if there are duplicates
 p.drop_duplicates(subset=['shortId'], keep='last', inplace=True)
-
-
 #have a quick check on the words that happen most
 all_words = [word for sentence in title for word in sentence.split(' ')]
 unique_words = sorted(list(set(all_words)))
-#print("%s words total, with a vocabulary size of %s" % (len(all_words), len(unique_words)))
 count_all_words = Counter(all_words)
-#pprint.pprint(count_all_words.most_common(50))
 
 # write away final data table to be used for analyses
 if not write_raw:
-    all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'category', 'hasSubTitle', 'polarity', 'subjectivity']]
+    all_data = p[['views', 'title', 'hasNamedEntity', 'hasNumbers', 'title_lengths', 'hasSubTitle', 'polarity', 'subjectivity']]
 else:
     all_data = p[['views', 'title']]
 
@@ -251,16 +230,10 @@ if newspaper == "DM":
         s.to_csv("all_words_counts_DM_NN_final.csv")
 
     else:
-        # raw data for neural nets
-        #view = [i[9] for i in dat]
-        #raw = pd.DataFrame(title_backup, view).reset_index()
-        #raw.columns = ['views', 'title']
-        #raw.to_csv("raw_DM.csv")
         all_data.to_csv("raw_DM_final.csv")
         s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
         s.columns = ['word', 'counts']
         s.to_csv("all_words_counts_DM_RAW_NN_final.csv")
-
 
 else:
     if not write_raw:
@@ -270,11 +243,6 @@ else:
         s.to_csv("all_words_counts_HLN_NN_final.csv")
 
     else:
-        #raw data for neural nets
-        #view = [i[9] for i in dat]
-        #raw = pd.DataFrame(title_backup, view).reset_index()
-        #raw.columns = ['views', 'title']
-        #raw.to_csv("raw_HLN.csv")
         all_data.to_csv("raw_HLN_final.csv")
         s = pd.DataFrame.from_dict(count_all_words, orient='index').reset_index()
         s.columns = ['word', 'counts']
