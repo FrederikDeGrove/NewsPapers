@@ -6,20 +6,33 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 
 
+plotting = True
+
 #################################################
 #################################################
 ########            TITLES             ##########
 #################################################
 #################################################
 
+HLN = False
+
+if HLN:
+    datfile = "HLN_ML_data_final_NN_final.csv"
+    rawfile = "raw_HLN_final.csv"
+else:
+    datfile = "DM_ML_data_final_NN_final.csv"
+    rawfile = "raw_DM_final.csv"
+
+
+
 # getting pre-processed data
-dat_pre = pd.read_csv("HLN_ML_data_final_NN_final.csv",  index_col=None)
+dat_pre = pd.read_csv(datfile,  index_col=None)
 dat_pre.drop(['Unnamed: 0'], inplace=True, axis = 1)
 dat_pre.title = dat_pre.title.astype("str")
 dat_pre.title_lengths = dat_pre.title_lengths.astype("float64")
 
 #getting the raw data
-dat_raw = pd.read_csv("raw_HLN_final.csv", index_col = None)
+dat_raw = pd.read_csv(rawfile, index_col = None)
 dat_raw.drop(['Unnamed: 0'], inplace=True, axis=1)
 dat_raw.title = dat_raw.title.astype("str")
 
@@ -41,9 +54,6 @@ def word_occurence(title_input):
 allwords_pre, unique_words_pre, count_words_pre = word_occurence(title_pre)
 allwords_raw, unique_words_raw, count_words_raw = word_occurence(title_raw)
 
-
-
-'''
 print("for the preprocessed dataset we have %s words total, with a vocabulary size of %s" % (len(allwords_pre), len(unique_words_pre)))
 print("for the raw dataset we have %s words total, with a vocabulary size of %s" % (len(allwords_raw), len(unique_words_raw)))
 
@@ -69,34 +79,33 @@ def plot_words(wordcounter, number):
     indexes = np.arange(len(labels))
     return indexes, values
 
+if plotting:
+    bar_width = 0.5
+    fig = plt.figure(figsize=(15, 15), dpi=150)
+    ax1 = fig.add_subplot(1,1,1)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['bottom'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    index, value = plot_words(count_words_pre, 500)
+    plt.bar(index, value, bar_width, color="black", fc=(0, 0, 0, 1))
 
-bar_width = 0.5
-fig = plt.figure(figsize=(15, 15), dpi=80)
-ax1 = fig.add_subplot(1,1,1)
-ax1.spines['top'].set_visible(False)
-ax1.spines['right'].set_visible(False)
-ax1.spines['bottom'].set_visible(False)
-ax1.spines['left'].set_visible(False)
-index, value = plot_words(count_words_pre, 500)
-plt.bar(index, value, bar_width, color="black", fc=(0, 0, 0, 1))
-
-
-ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
-ax1.set_yticks(np.arange(0,120000, 10000))
-ax2 = fig.add_subplot(1,1,1)
-ax2.spines['top'].set_visible(False)
-ax2.spines['right'].set_visible(False)
-ax2.spines['bottom'].set_visible(False)
-ax2.spines['left'].set_visible(False)
-#ax2.yaxis.set_visible(False)
-index, value = plot_words(count_words_raw, 500)
-plt.bar(index, value, bar_width, color="green", fc=(0, 0.3, 0.3, 0.3))
-#ax2.set_title('Barplot for first 500 words of raw text')
-ax2.set_yticks(np.arange(0,60000, 10000))
-
+    #ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
+    ax1.set_yticks(np.arange(0,120000, 10000))
+    ax2 = fig.add_subplot(1,1,1)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    #ax2.yaxis.set_visible(False)
+    index, value = plot_words(count_words_raw, 500)
+    plt.bar(index, value, bar_width, color="green", fc=(0, 0.3, 0.3, 0.3))
+    #ax2.set_title('Barplot for first 500 words of raw text')
+    ax2.set_yticks(np.arange(0,60000, 10000))
 
 
 
+'''
 wc = WordCloud().generate_from_frequencies(dict(count_words_pre.most_common(500)))
 fig = plt.figure(figsize=(18, 60), dpi=80)
 ax1 = fig.add_subplot(2,1,1)
@@ -126,26 +135,44 @@ sentences_preprocessed = CountWordsPerSentence(title_pre)
 sentences_raw = CountWordsPerSentence(title_raw)
 
 
-'''
+
 pd.DataFrame(sentences_preprocessed).describe()
 pd.DataFrame(sentences_raw).describe()
 
-fig = plt.figure(figsize=(20, 15), dpi=80)
-ax1 = fig.add_subplot(1,2,1)
+
+
+if plotting:
+    fig = plt.figure(figsize=(15, 15), dpi=150)
+    ax1 = fig.add_subplot(1,1,1)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['bottom'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    plt.hist(sentences_preprocessed , bins = 50,  fc=(0, 0.2, 0.2, 1))
+
+    #ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
+    #ax1.set_yticks(np.arange(0,120000, 10000))
+    ax2 = fig.add_subplot(1,1,1)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    #ax2.yaxis.set_visible(False)
+    plt.hist(sentences_raw, bins = 50, fc=(0, 0.3, 0.3, 0.3))
+    #ax2.set_yticks(np.arange(0,60000, 10000))
+
+
+
+# views
+
+
+dat_pre.views.describe().apply(lambda x: format(x, 'f'))
+
+fig = plt.figure(figsize=(15, 15), dpi=150)
+ax1 = fig.add_subplot(1,1,1)
 ax1.spines['top'].set_visible(False)
 ax1.spines['right'].set_visible(False)
 ax1.spines['bottom'].set_visible(False)
 ax1.spines['left'].set_visible(False)
-ax1.set_title('Title Length Distribution - preprocessed')
-#ax1.set_yticks(np.arange(0,80000, 10000))
-plt.hist(sentences_preprocessed, bins=50, color="lightblue")
-
-ax2 = fig.add_subplot(1,2,2)
-ax2.spines['top'].set_visible(False)
-ax2.spines['right'].set_visible(False)
-ax2.spines['bottom'].set_visible(False)
-ax2.spines['left'].set_visible(False)
-ax2.set_title('Title Length Distribution - raw')
-#ax2.set_yticks(np.arange(0,80000, 10000))
-plt.hist(sentences_raw, bins=50, color="lightblue")
-'''
+plt.hist(dat_pre.views[dat_pre.views < dat_pre.views.quantile(.90)], bins = 100, color="lightblue")
+plt.axvline(dat_pre.views.quantile(.50), color='grey')
