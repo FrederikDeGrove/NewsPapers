@@ -108,99 +108,311 @@ to feed them to the network. So it makes sense to keep those methods separate.
 
 '''
 
+
 ###############################################################
 #                                                             #
-#               defining hyperparameters                      #
+#               defining networks                             #
 #                                                             #
 ###############################################################
 
-# constructing a parameter grid
+def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_layer=False, LSTM_layer=False):
+    type = type_of_network
+    startpoint = startpoint # if some error occurs we can pick up where we left
+
+    if type == 'feedforward_embed':
+        averaging = False
+        hidden_layer = False
+        LSTM_layer = False
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001]
+                      }
+
+    elif type == 'feedforward_embed_hidden':
+        averaging = False
+        hidden_layer = True
+        LSTM_layer = False
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001],
+                      'nodes_layer_2': [10, 50, 100],
+                      'layer2_regularzation': [.00001]
+                      }
+
+    elif type == 'feedforward_embed_average':
+        averaging = True
+        hidden_layer = False
+        LSTM_layer = False
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001]
+                      }
+
+    elif type == 'feedforward_embed_average_hidden':
+        averaging = True
+        hidden_layer = True
+        LSTM_layer = False
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001],
+                      'nodes_layer_2': [10, 100],
+                      'layer2_regularzation': [.00001]
+                      }
+
+    elif type == 'LSTM_1':
+        averaging = False
+        hidden_layer = False
+        LSTM_layer = True
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001],
+                      'nodes_LSTM': [10, 100],
+                      'LSTM_regularization': [0.0001, 0.00001]
+                      }
+
+    else:
+        averaging = False
+        hidden_layer = True
+        LSTM_layer = True
+        param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                      'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
+                      'embedding_dimensions': [2, 10, 50, 100],
+                      'embedding_regularization': [.00001, .0001],
+                      'learning-rate': [.001],
+                      'nodes_LSTM': [10, 100],
+                      'LSTM_regularization': [0.0001, 0.00001],
+                      'nodes_layer_2': [10, 100],
+                      'layer2_regularzation': [.00001]
+                      }
+
+    filename = type + ".csv"
+    # if logging already started we just add to the file.
+    try:
+        with open(filename, 'r') as fh:
+            write_to_existing_csv_file = True
+    except:
+        write_to_existing_csv_file = False
+
+    grid_full = list(ParameterGrid(param_grid))
+    grid = grid_full[startpoint:]  # this allows us to continue if we left off somewhere
+
+    for grindex, combination in enumerate(grid):
+        date_start = datetime.datetime.now().date()
+        time_start = datetime.datetime.now()
+        sentence_length = int(combination['sentence_length'])
+        batch_size = combination['batchSize']
+        regularization = combination['embedding_regularization']
+        output_d = combination['embedding_dimensions']
+        if hidden_layer:
+            layer2_size = combination['nodes_layer_2']
+            layer2_regularization = combination['layer2_regularzation']
+        # opti = optimizers.adagrad(lr=combination['learning-rate'])
+        # adagrad seems a good choice for all the different words we are using?
+        # https://www.reddit.com/r/MachineLearning/comments/3i6fp9/what_optimization_methods_work_best_for_lstms/
+        opti = optimizers.rmsprop(lr=combination['learning-rate'])  # set optimizer and its learning rate
+
+        data = pad_sequences(sequences, maxlen=sentence_length, padding="post", truncating="post")
+
+        if LSTM_layer:
+            LSTM_nodes = combination['nodes_LSTM']
+            LSTM_regularizer = combination['LSTM_regularization']
+        modelname = type + str(startpoint) + ".hdf5"
+
+        #################################################
+        model = Sequential()
+        model.add(Embedding(max_words + 1, output_dim=output_d, input_length=sentence_length,
+                            embeddings_regularizer=regularizers.l1(regularization)))
+        if averaging:
+            model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
+        if LSTM_layer:
+            model.add(LSTM(LSTM_nodes, kernel_regularizer=regularizers.l1(LSTM_regularizer)))
+        if LSTM_layer is False and averaging is False:
+            model.add(Flatten())
+        if hidden_layer:
+            model.add(Dense(layer2_size, activation='relu', kernel_regularizer=regularizers.l1(layer2_regularization)))
+        model.add(Dense(1, activation='sigmoid'))
+
+        callback_list = [
+            callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=10,
+                restore_best_weights=True
+            ),
+
+            callbacks.ModelCheckpoint(
+                filepath=modelname,
+                monitor='val_loss',
+                save_best_only=True
+            ),
+
+            # as we use adagrad, this is not needed (??)
+            callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=.2,
+                patience=5
+            )
+        ]
+
+        model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc'])  # loss='binary_crossentropy'
+        model.summary()
+
+        history = model.fit(data, y_train,
+                            epochs=1500,
+                            batch_size=batch_size,
+                            callbacks=callback_list,
+                            validation_split=0.2)
+
+        time_end = datetime.datetime.now()
+
+        # evaluation results
+        acc = history.history['acc']
+        val_acc = history.history['val_acc']
+        loss = history.history['loss']
+        val_loss = history.history['val_loss']
+        number_parameters = history.model.count_params()
+        number_layers = len(history.model.layers)
+
+        combination['max_accuracy'] = round(max(acc), 4)
+        combination['mean_accuracy'] = round(np.mean(acc), 4)
+        combination['max_val_acc'] = round(max(val_acc), 4)
+        combination['mean_val_acc'] = round(np.mean(val_acc), 4)
+        combination['sd_val_acc'] = round(np.std(val_acc), 4)
+        combination['epoch_where_max_val_acc_reached'] = history.history['val_acc'].index(
+            max(history.history['val_acc']))
+        combination['number_parameters'] = number_parameters
+        combination['number_layers'] = number_layers
+        combination['date_logged'] = date_start
+        combination['time_taken_seconds'] = (time_end - time_start).seconds
+        combination['model_number'] = startpoint
+        # write data to csv
+        gridwrite = grid[grindex]
+        keys = gridwrite.keys()
+        if write_to_existing_csv_file or grindex is not 0:
+            with open(filename, 'a') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
+                # dict_writer.writeheader()
+                dict_writer.writerows([gridwrite])
+        else:
+            with open(filename, 'w') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys, lineterminator='\n')
+                dict_writer.writeheader()
+                dict_writer.writerows([gridwrite])
+        startpoint += 1
+
+
+
+###############################################################
+#                                                             #
+#               computin networks                             #
+#                                                             #
+###############################################################
+
 
 # SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
 from Descriptives import sentences_raw
-
 network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
 
-type = network_types[0]
-startpoint = 0 #if some error occurs we can pick up where we left
+neural_net_analysis(network_types[5], startpoint=191)
+
+
+
+'''
+from Descriptives import sentences_raw
+type_of_network = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
+type = type_of_network[1]
+startpoint = 90 #if some error occurs we can pick up where we left
+
+averaging = False
+hidden_layer = False
+LSTM = False
+
 
 if type =='feedforward_embed':
     averaging = False
     hidden_layer = False
     LSTM = False
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01]
+                  'learning-rate': [.001]
                   }
 
 elif type == 'feedforward_embed_hidden':
     averaging = False
     hidden_layer = True
     LSTM = False
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01]
-                  'nodes_layer_2': [10, 100],
-                  'layer2_regularziation' : [.00001]
+                  'learning-rate': [.001],
+                  'nodes_layer_2': [10, 50, 100],
+                  'layer2_regularzation' : [.00001]
                   }
 
 elif type == 'feedforward_embed_average':
     averaging = True
     hidden_layer = False
     LSTM = False
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01]
+                  'learning-rate': [.001]
                   }
 
-elif  type == 'feedforward_embed_average_hidden':
+elif type == 'feedforward_embed_average_hidden':
     averaging = True
     hidden_layer = True
     LSTM = False
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01],
+                  'learning-rate': [.001],
                   'nodes_layer_2': [10, 100],
-                  'layer2_regularziation': [.00001]
+                  'layer2_regularzation': [.00001]
                   }
 
 elif type == 'LSTM_1':
     averaging = False
     hidden_layer = False
     LSTM = True
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01],
+                  'learning-rate': [.001],
                   'nodes_LSTM': [10, 100],
-                  'LSTM_dropout': [0.2, 0.5],
-                  'LTSM_recurrent_dropout': [0.2, 0.5]
+                  'LSTM_regularization': [0.0001, 0.00001]
                   }
 
 else:
     averaging = False
     hidden_layer = True
     LSTM = True
-    param_grid = {'sentence_length': [np.percentile(sentences_raw, 50), np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
-                  'batchSize': [128, 1000, 5000, 10000],
-                  'embedding_dimensions': [2, 10, 50, 100, 300],
+    param_grid = {'sentence_length': [np.percentile(sentences_raw, 75), np.percentile(sentences_raw, 95)],
+                  'batchSize': [2**8, 2**12, 2**13],
+                  'embedding_dimensions': [2, 10, 50, 100],
                   'embedding_regularization': [.00001, .0001],
-                  'learning-rate': [.01]
+                  'learning-rate': [.001],
                   'nodes_LSTM': [10, 100],
-                  'LSTM_dropout': [0.2, 0.5],
-                  'LTSM_recurrent_dropout': [0.2, 0.5],
+                  'LSTM_regularization': [0.0001, 0.00001],
                   'nodes_layer_2': [10, 100],
-                  'layer2_regularziation': [.00001]
+                  'layer2_regularzation': [.00001]
                   }
+
 
 
 filename = type + ".csv"
@@ -222,30 +434,32 @@ for grindex, combination in enumerate(grid):
     batch_size = combination['batchSize']
     regularization = combination['embedding_regularization']
     output_d = combination['embedding_dimensions']
-    if hidden_layer == True:
+    if hidden_layer:
         layer2_size = combination['nodes_layer_2']
-        layer2_regularization = combination['layer2_regularziation']
-    #opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
-    opti = optimizers.adagrad(lr=combination['learning-rate']) #adagrad seems a good choice for all the different words we are using?
+        layer2_regularization = combination['layer2_regularzation']
+    #opti = optimizers.adagrad(lr=combination['learning-rate'])
+    #adagrad seems a good choice for all the different words we are using?
     # https://www.reddit.com/r/MachineLearning/comments/3i6fp9/what_optimization_methods_work_best_for_lstms/
-    data = pad_sequences(sequences, maxlen=sentence_length, padding="post")
-    if LSTM == True:
+    opti = optimizers.rmsprop(lr=combination['learning-rate']) #set optimizer and its learning rate
+
+    data = pad_sequences(sequences, maxlen=sentence_length, padding="post", truncating="post")
+
+    if LSTM:
         LSTM_nodes = combination['nodes_LSTM']
-        LSTM_dropout = combination['LSTM_dropout']
-        LSTM_recurrent_dropout = combination['LTSM_recurrent_dropout']
-    modelname = "type" + str(startpoint) + ".hdf5"
+        LSTM_regularizer = combination['LSTM_regularization']
+    modelname = type + str(startpoint) + ".hdf5"
 
 
     #################################################
     model = Sequential()
     model.add(Embedding(max_words +1, output_dim= output_d , input_length= sentence_length, embeddings_regularizer=regularizers.l1(regularization)))
-    if averaging == True
+    if averaging:
         model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
-    if LSTM == True
-        model.add(LSTM(LSTM_nodes, dropout=LSTM_dropout, recurrent_dropout=LSTM_recurrent_dropout))
-    if LSTM == False and averaging = False
+    if LSTM:
+        model.add(LSTM(LSTM_nodes, kernel_regularizer=regularizers.l1(LSTM_regularizer)))
+    if LSTM == False and averaging == False:
         model.add(Flatten())
-    if hidden_layer == True:
+    if hidden_layer:
         model.add(Dense(layer2_size , activation='relu', kernel_regularizer=regularizers.l1(layer2_regularization)))
     model.add(Dense(1, activation='sigmoid'))
 
@@ -263,18 +477,18 @@ for grindex, combination in enumerate(grid):
             ),
 
         #as we use adagrad, this is not needed (??)
-        #callbacks.ReduceLROnPlateau(
-        #    monitor='val_loss',
-        #    factor=.1,
-        #    patience=10
-        #)
+        callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=.2,
+            patience=5
+        )
     ]
 
     model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc']) #loss='binary_crossentropy'
     model.summary()
 
     history = model.fit(data, y_train,
-                        epochs=500,
+                        epochs=1500,
                         batch_size=batch_size,
                         callbacks=callback_list,
                         validation_split=0.2)
@@ -316,10 +530,7 @@ for grindex, combination in enumerate(grid):
     startpoint += 1
 
 '''
-model.save("test_embdding_model.hdf5")
-from keras.models import load_model
-model2 = load_model("test_embdding_model.hdf5")
-'''
+
 
 '''
 #run model on complete training set to get validation results
