@@ -340,19 +340,3 @@ ax1.spines['bottom'].set_visible(False)
 ax1.spines['left'].set_visible(False)
 ax1.set_xlabel("Feature importance")
 plt.show()
-
-
-from scipy import stats
-
-t2, p2 = stats.mannwhitneyu(dat.subjectivity,dat2.subjectivity)
-print("t = " + str(t2))
-print("p = " + str(p2))
-
-t2, p2 = stats.mannwhitneyu(dat.title_lengths,dat2.title_lengths)
-print("t = " + str(t2))
-print("p = " + str(p2))
-
-np.mean(dat.title_lengths)
-np.mean(dat2.title_lengths)
-
-
