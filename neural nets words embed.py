@@ -20,12 +20,7 @@ import csv
 import keras
 import csv
 
-## custom function
-#source https://stackoverflow.com/questions/41032551/how-to-compute-receiving-operating-characteristic-roc-and-auc-in-keras
-def auroc(y_true, y_pred):
-    return tf.py_func(roc_auc_score, (y_true, y_pred), tf.double)
-
-#functin for plotting ROC curve
+#function for plotting ROC curve
 def plot_roc_curve(fpr, tpr, auc):
     plt.plot(fpr, tpr, color='lightblue', label='ROC')
     plt.plot([0, 1], [0, 1], color='pink', linestyle='--')
