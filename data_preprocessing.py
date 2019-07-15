@@ -3,17 +3,13 @@ import csv
 import json
 import codecs
 from nltk.corpus import stopwords
-import string
 import re
 import sys
 import copy
-import pprint
 from collections import Counter
-from nltk.tokenize import RegexpTokenizer
 import pattern
 import pattern.nl
 import unidecode
-
 
 
 # setting some options for pandas
@@ -26,12 +22,13 @@ pd.set_option('display.width', 500)
 ###########################################################
 ###########################################################
 
-def countUpper(text):
+
+def count_upper(text):
     # takes a text string and counts the number of upper cases for each element in the string
     return sum(1 for i in text if i.isupper())
 
 
-def hasDigits(text):
+def has_digits(text):
     # takes a string counts the number of digits for each element in the string
     return sum(1 for i in text if i.isdigit())
 
@@ -39,7 +36,7 @@ def hasDigits(text):
 def remove_words_of_length(dat, length=2):
     to_pop = []
     for word in dat.split(" "):
-        if len(word) <= length and word.isalpha() and hasDigits(word) < 1:
+        if len(word) <= length and word.isalpha() and has_digits(word) < 1:
             to_pop.append(word)
     words = [i for i in dat.split(" ") if i not in to_pop]
     return ' '.join(words)
@@ -56,25 +53,25 @@ def replace_strange_symbols(text):
     return unidecode.unidecode(text)
 
 
-def customLemmatize(text_):
+def custom_lemmatize(text_):
     return ' '.join(pattern.text.Sentence(pattern.nl.parse(text_, lemmata=True)).lemmata)
 
 
-def setLowerCase(text):
+def set_lowercase(text):
     return ''.join([i.lower() for i in text])
 
 
-def keepOnlyNumCharAndOther(text):
+def keep_only_num_char_and_other(text):
     return re.sub('[^a-zA-Z1234567890!?]', ' ', text)
 
 
-def removeStopWords(text, stopword_list):
+def remove_stopwords(text, stopword_list):
     t = text.split(" ")
     keepers = [i for i in t if i not in stopword_list]
     return ' '.join(keepers)
 
 
-def processNumbers(sentence):
+def process_numbers(sentence):
     # takes a sentence, checks if it has any digita. If so, return new sentence with digital processed
     if any(char.isdigit() for char in sentence):
         words = sentence.split()
@@ -159,19 +156,15 @@ for index, n in enumerate(temp_text):
 title_backup = copy.deepcopy(title)
 
 
-###################################################################
-# now start working on the text to make it more processable       #
-#                                                                 #
-# make binary variable if there are:                              #
-# - numbers in the text                                           #
-# - more than one capital letter (indicating named entity)        #
-# - there was a subtitle                                          #
-#                                                                 #
-###################################################################
+###########################################################
+###########################################################
+#################   pre processing    #####################
+###########################################################
+###########################################################
 
 if not write_raw:
-    hasNamedEntity = [1 if countUpper(i) > 1 else 0 for i in title]
-    hasNumbers = [0 if hasDigits(i) == 0 else 1 for i in title]
+    hasNamedEntity = [1 if count_upper(i) > 1 else 0 for i in title]
+    hasNumbers = [0 if has_digits(i) == 0 else 1 for i in title]
     hasSubTitle = [0 if i == ' ' else 1 for i in subtitle]
     numberOfWords = [len(i.split(" ")) for i in title]
 
@@ -185,7 +178,7 @@ else:
     to_replace = dict({"'": ' ', '"': ' ', '-': '', '&': '', '\r': ' ', '\n': ' '})
     title = [replace_characters(to_replace, i) for i in title]
     title = [remove_words_of_length(i, length=1) for i in title]  # REMOVE ALL WORDS SHORTER than 1 char
-    title = [processNumbers(i) for i in title]  # transform all numbers in the text to specific word representations
+    title = [process_numbers(i) for i in title]  # transform all numbers in the text to specific word representations
     sentiment_score = [pattern.nl.sentiment(i) for i in title]  # compute sentiment scores
     polarity = [i[0] for i in sentiment_score]  # polarity score
     subjectivity = [i[1] for i in sentiment_score]  # subjectivity score
@@ -196,10 +189,10 @@ else:
     pattern.text.Sentence(pattern.nl.parse('dit is een test'))
     pattern.text.Sentence(pattern.nl.parse('dit is een test')).lemmata
     '''
-    title = [customLemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
-    title = [setLowerCase(i) for i in title] #set all to lowercase
-    title = [keepOnlyNumCharAndOther(i) for i in title] #revove everything but numbers, letters and ! and ?
-    title = [removeStopWords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
+    title = [custom_lemmatize(i) for i in title] # lemmatize text - sometimes you need to run the functions within separately before this functions works
+    title = [set_lowercase(i) for i in title] #set all to lowercase
+    title = [keep_only_num_char_and_other(i) for i in title] #revove everything but numbers, letters and ! and ?
+    title = [remove_stopwords(i, stopwords.words('dutch')) for i in title] # remove stopwords -- nltk.download('stopwords')
     title = [' '.join(i.split()) for i in title] #remove whitespaces
 
 title_backup2 = title
