@@ -16,7 +16,7 @@ import unidecode
 
 
 
-#setting some options for pandas
+# setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
@@ -27,12 +27,14 @@ pd.set_option('display.width', 500)
 ###########################################################
 
 def countUpper(text):
-    #takes a text string and counts the number of upper cases for each element in the string
+    # takes a text string and counts the number of upper cases for each element in the string
     return sum(1 for i in text if i.isupper())
 
+
 def hasDigits(text):
-    #takes a string counts the number of digits for each element in the string
+    # takes a string counts the number of digits for each element in the string
     return sum(1 for i in text if i.isdigit())
+
 
 def remove_words_of_length(dat, length=2):
     to_pop = []
@@ -42,28 +44,35 @@ def remove_words_of_length(dat, length=2):
     words = [i for i in dat.split(" ") if i not in to_pop]
     return ' '.join(words)
 
+
 def replace_characters(char_dict, text):
     to_change = text
     for key, value in char_dict.items():
         to_change = to_change.replace(key, value)
     return to_change
 
+
 def replace_strange_symbols(text):
     return unidecode.unidecode(text)
+
 
 def customLemmatize(text_):
     return ' '.join(pattern.text.Sentence(pattern.nl.parse(text_, lemmata=True)).lemmata)
 
+
 def setLowerCase(text):
     return ''.join([i.lower() for i in text])
 
+
 def keepOnlyNumCharAndOther(text):
     return re.sub('[^a-zA-Z1234567890!?]', ' ', text)
+
 
 def removeStopWords(text, stopword_list):
     t = text.split(" ")
     keepers = [i for i in t if i not in stopword_list]
     return ' '.join(keepers)
+
 
 def processNumbers(sentence):
     # takes a sentence, checks if it has any digita. If so, return new sentence with digital processed
@@ -73,7 +82,6 @@ def processNumbers(sentence):
         for word in words:
             if any(char.isdigit() for char in word):
                 number = int(''.join([i for i in word if i.isdigit()]))
-
                 if number <= 10:
                     newword = "smallnumber"
                 elif number <= 100:
@@ -81,8 +89,6 @@ def processNumbers(sentence):
                 else:
                     newword = "bignumber"
                 new_sentence.append(newword)
-
-                #new_sentence.append(number)
             else:
                 new_sentence.append(word)
         return ' '.join(new_sentence)
