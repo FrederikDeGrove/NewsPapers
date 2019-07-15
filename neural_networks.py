@@ -1,8 +1,10 @@
+from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, accuracy_score
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.layers import Embedding
 from keras.models import Sequential
 from keras.layers import Dense, Flatten
+from keras.models import load_model
 import matplotlib.pyplot as plt
 from keras import regularizers
 from keras.layers import LSTM
@@ -19,17 +21,80 @@ import csv
 import keras
 import csv
 
+
 #function for plotting ROC curve
 def plot_roc_curve(fpr, tpr, auc):
+    fig = plt.figure() #figsize=(15, 15), dpi=100)
+    ax1 = fig.add_subplot(1, 1, 1)
+    #ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['bottom'].set_visible(True)
+    ax1.spines['left'].set_visible(True)
+
     plt.plot(fpr, tpr, color='lightblue', label='ROC')
     plt.plot([0, 1], [0, 1], color='pink', linestyle='--')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC Curve')
+    #plt.title('ROC Curve')
     plt.legend()
     #plt.box(False)
     plt.figtext(.31, .5, 'AUC = ' + str(round(auc, 4)))
     plt.show()
+
+#function to run best performing models on test data (returns accuracy, confusion matrix and ROC curve)
+def load_and_test_network(name_network, test_data_X, test_data_Y, plot=True):
+    model = load_model(name_network)
+    model.load_weights(name_network)
+    preds = model.predict_classes(test_data_X)
+    probs = model.predict(test_data_X)
+    acc = accuracy_score(test_data_Y, preds)
+    confusion = confusion_matrix(test_data_Y, preds)
+    if plot:
+        auc = roc_auc_score(test_data_Y, probs)
+        fpr, tpr, thresholds = roc_curve(test_data_Y, probs)
+        plot_roc_curve(fpr, tpr, auc)
+    return acc, confusion
+
+def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize, sentlength, hiddennodes, hiddenL1, hiddenlayer=False):
+    sequences = tokenizer.texts_to_sequences(input_data)
+    word_index = tokenizer.word_index
+    max_words = len(word_index)
+    data = pad_sequences(sequences, maxlen=sentlength, padding="post", truncating="post")
+    #################################################
+    model = Sequential()
+    model.add(Embedding(max_words + 1, output_dim=embdim, input_length=sentlength,
+                        embeddings_regularizer=regularizers.l1(embreg)))
+    model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
+    if hiddenlayer:
+        model.add(Dense(hiddennodes, activation='relu', kernel_regularizer=regularizers.l1(hiddenL1)))
+    model.add(Dense(1, activation='sigmoid'))
+
+    callback_list = [
+        callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True
+        ),
+
+
+        callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=.2,
+            patience=5
+        )
+    ]
+
+    model.compile(optimizer=optimizers.rmsprop(lr=learning_rate), loss='binary_crossentropy', metrics=['acc'])
+    model.summary()
+
+    history = model.fit(data, y_train,
+                        epochs=1500,
+                        batch_size=batchsize,
+                        callbacks=callback_list,
+                        validation_split=0.2)
+    return history
+
 
 ###########################################################
 ###########################################################
@@ -62,6 +127,7 @@ inv_map = {v: k for k, v in word_index.iteritems()}
 
 #write words and their sequence code - needs to be done only once
 write_words = False
+
 if write_words:
     with open('words_RAW_HLN.csv', 'wb') as f:  # If using python 3 use 'w'
         w = csv.DictWriter(f, inv_map.keys())
@@ -279,17 +345,123 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
 ###########################################################
 ###########################################################
 
-# SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
 
-from descriptive import sentences_raw
+run_networks = False
 
-network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
-
-for type in network_types:
-    neural_net_analysis(type, startpoint=191)
-
-#neural_net_analysis(network_types[5], startpoint=191)
-
+if run_networks:
+    # SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
+    from descriptive import sentences_raw
+    network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
+    for type in network_types:
+        neural_net_analysis(type, startpoint=0)
 
 
+###########################################################
+###########################################################
+#################   TEST DATA FITTING   ###################
+###########################################################
+###########################################################
+sequences = tokenizer.texts_to_sequences(X_test.title)
+word_index = tokenizer.word_index
+print('found %s unique tokens.' % len(word_index))
+max_words = len(word_index)
+inv_map = {v: k for k, v in word_index.iteritems()}
+data_test = pad_sequences(sequences, maxlen=16, padding="post", truncating="post")
+y_test = np.asarray(y_test_dich)
 
+
+best_performing_models = ['feedforward_embed21.hdf5', 'feedforward_embed_hidden101.hdf5', 'feedforward_embed_average25.hdf5', 'feedforward_embed_average_hidden51.hdf5', 'LSTM_137.hdf5', 'LSTM_hidden163.hdf5']
+
+acc_FF1, conf_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
+acc_FF2, conf_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
+# loss_FF3, acc_FF3 = load_and_test_network(best_performing_models[2], data_test, y_test ) - model saving did not work
+# loss_FF4, acc_FF4 = load_and_test_network(best_performing_models[3], data_test, y_test ) - model saving did not work
+acc_LSTM1, conf_LSTM1 = load_and_test_network(best_performing_models[4], data_test, y_test)
+acc_LSTM2, conf_LSTM2 = load_and_test_network(best_performing_models[5], data_test, y_test)
+
+
+# for averaging, saving models did not work. This is probably due to the custom lambda function we implemented for averaging
+# We run them again with optimal hyperparameters.
+'''
+learning-rate	0.001
+embedding_dimensions	50
+embedding_regularization	1E-05
+batchSize	4096
+sentence_length	16
+'''
+# for the feedforward_embed_average + 1 hidden layer:
+'''
+learning-rate	0.001
+embedding_dimensions	50
+embedding_regularization	1E-05
+batchSize	4096
+layer2_regularzation	1E-05
+nodes_layer_2	100
+sentence_length	16
+'''
+embedding_average = custom_model_network(X_train.title, learning_rate=.001, embdim=50, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False)
+embedding_average_hidden = custom_model_network(X_train.title, learning_rate=.001, embdim=50, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False)
+
+# averaging no hidden layer
+preds_ea = embedding_average.model.predict_classes(data_test)
+probs_ea = embedding_average.model.predict(data_test)
+acc_ea = accuracy_score(y_test, preds_ea)
+confusion_ea = confusion_matrix(y_test, preds_ea)
+auc_ea = roc_auc_score(y_test, probs_ea)
+fpr_ea, tpr_ea, thresholds_ea = roc_curve(y_test, probs_ea)
+plot_roc_curve(fpr_ea, tpr_ea, auc_ea)
+
+# averaging + 1 hidden layer
+preds_eah = embedding_average_hidden.model.predict_classes(data_test)
+probs_eah = embedding_average_hidden.model.predict(data_test)
+acc_eah = accuracy_score(y_test, preds_eah)
+confusion_eah = confusion_matrix(y_test, preds_eah)
+auc_eah = roc_auc_score(y_test, probs_eah)
+fpr_eah, tpr_eah, thresholds_eah = roc_curve(y_test, probs_eah)
+plot_roc_curve(fpr_eah, tpr_eah, auc_eah)
+
+
+###########################################################
+###########################################################
+################### DATA DE MORGEN    #####################
+###########################################################
+###########################################################
+
+# read in the data from the saved datafile
+dat2 = pd.read_csv("DM_ML_data_final_NN_final.csv",  index_col=None)
+dat2.drop(['Unnamed: 0'], inplace=True, axis = 1)
+dat2.title = dat2.title.astype("str")
+dat2.subjectivity = dat2.subjectivity.astype("float64")
+dat2.polarity = dat2.polarity.astype("float64")
+dat2.title_lengths = dat2.title_lengths.astype("float64")
+###define cutoff
+cutoff_DM = dat2.views.median()
+
+features = [i for i in dat2.columns.values if i in ['title']]
+X_test_DM = dat2[features]
+y_test_dich_DM = [0 if i <= cutoff_DM else 1 for i in dat2['views']]
+y_test_DM = np.asarray(y_test_dich_DM)
+
+
+sequences_DM = tokenizer.texts_to_sequences(X_test_DM.title)
+word_index = tokenizer.word_index
+max_words = len(word_index)
+data_test_DM = pad_sequences(sequences_DM, maxlen=16, padding="post", truncating="post")
+
+
+
+load_and_test_network(best_performing_models[0], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models[1], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models[4], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models[5], data_test_DM, y_test_DM, plot=False)
+
+
+probs = embedding_average.model.predict(data_test_DM)
+preds = embedding_average.model.predict_classes(data_test_DM)
+acc = accuracy_score(y_test_DM, preds)
+print(acc)
+
+probs = embedding_average_hidden.model.predict(data_test_DM)
+preds = embedding_average_hidden.model.predict_classes(data_test_DM)
+acc = accuracy_score(y_test_DM, preds)
+print(acc)
