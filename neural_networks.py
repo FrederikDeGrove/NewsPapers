@@ -18,8 +18,6 @@ from sklearn.metrics import roc_curve, accuracy_score
 from sklearn.metrics import roc_auc_score
 import datetime
 import csv
-import keras
-import csv
 
 
 #function for plotting ROC curve
