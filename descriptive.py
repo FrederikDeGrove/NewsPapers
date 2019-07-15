@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 #################################################
 
 
-def CountWordsPerSentence(title_input):
+def count_words_per_sentence(title_input):
     sent = []
     for sentence in title_input:
         sent.append(len(sentence.split()))
@@ -65,8 +65,6 @@ dat_raw = pd.read_csv(rawfile, index_col = None)
 dat_raw.drop(['Unnamed: 0'], inplace=True, axis=1)
 dat_raw.title = dat_raw.title.astype("str")
 
-# STILL TO DO: MAKE NEW RAW FILE WITH DUPLICATES REMOVED OR WITH ID STILL ATTACHED SO I CAN DO IT HERE
-
 title_pre = list(dat_pre.title)
 title_raw = list(dat_raw.title)
 
@@ -112,9 +110,15 @@ if plotting:
     ax2.set_yticks(np.arange(0,60000, 10000))
 
 
+#################################################
+#################################################
+############     TITLE LENGTHS      #############
+#################################################
+#################################################
+
 # getting number of words per sentence
-sentences_preprocessed = CountWordsPerSentence(title_pre)
-sentences_raw = CountWordsPerSentence(title_raw)
+sentences_preprocessed = count_words_per_sentence(title_pre)
+sentences_raw = count_words_per_sentence(title_raw)
 pd.DataFrame(sentences_preprocessed).describe()
 pd.DataFrame(sentences_raw).describe()
 
@@ -138,7 +142,7 @@ if plotting:
 
 #################################################
 #################################################
-########            VIEWS             ###########
+##############    VIEWS             #############
 #################################################
 #################################################
 
