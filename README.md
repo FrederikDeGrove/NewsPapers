@@ -7,7 +7,7 @@ It contains the following files:
 - data_preprocsssing: all preprocessing steps performed on the raw datafiles.
 - descriptive: all descriptive analyses found in the MP.
 - boosting_trees: all code for performing analysis using XGBoost. 
-- neural_networks: all code for building and testing 6 network architectures.
+- neural_networks: all code for building and testing network architectures.
 
 
 
