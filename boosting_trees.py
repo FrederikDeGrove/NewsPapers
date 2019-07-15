@@ -15,11 +15,10 @@ from scipy.sparse import hstack
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
-#functin for plotting ROC curve
+# function for plotting ROC curve
 def plot_roc_curve(fpr, tpr, auc):
-    fig = plt.figure() #figsize=(15, 15), dpi=100)
+    fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
-    #ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
     ax1.spines['top'].set_visible(False)
     ax1.spines['right'].set_visible(False)
     ax1.spines['bottom'].set_visible(True)
@@ -31,7 +30,6 @@ def plot_roc_curve(fpr, tpr, auc):
     plt.ylabel('True Positive Rate')
     #plt.title('ROC Curve')
     plt.legend()
-    #plt.box(False)
     plt.figtext(.31, .5, 'AUC = ' + str(round(auc, 4)))
     plt.show()
 
@@ -258,10 +256,6 @@ ax1.spines['bottom'].set_visible(False)
 ax1.spines['left'].set_visible(False)
 ax1.set_xlabel("Feature importance")
 plt.show()
-
-
-
-
 
 
 ###########################################################
