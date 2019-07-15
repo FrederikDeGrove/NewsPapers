@@ -20,28 +20,32 @@ import datetime
 import csv
 
 
-#function for plotting ROC curve
+###########################################################
+###########################################################
+###################      FUNCTIONS        #################
+###########################################################
+###########################################################
+
 def plot_roc_curve(fpr, tpr, auc):
-    fig = plt.figure() #figsize=(15, 15), dpi=100)
+    # function for plotting ROC curve
+    fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
-    #ax1.set_title('Distribution of first 500 words of vocabularies', loc="center")
     ax1.spines['top'].set_visible(False)
     ax1.spines['right'].set_visible(False)
     ax1.spines['bottom'].set_visible(True)
     ax1.spines['left'].set_visible(True)
-
     plt.plot(fpr, tpr, color='lightblue', label='ROC')
     plt.plot([0, 1], [0, 1], color='pink', linestyle='--')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     #plt.title('ROC Curve')
     plt.legend()
-    #plt.box(False)
     plt.figtext(.31, .5, 'AUC = ' + str(round(auc, 4)))
     plt.show()
 
-#function to run best performing models on test data (returns accuracy, confusion matrix and ROC curve)
+
 def load_and_test_network(name_network, test_data_X, test_data_Y, plot=True):
+    # function to run best performing models on test data (returns accuracy, confusion matrix and ROC curve)
     model = load_model(name_network)
     model.load_weights(name_network)
     preds = model.predict_classes(test_data_X)
@@ -54,12 +58,13 @@ def load_and_test_network(name_network, test_data_X, test_data_Y, plot=True):
         plot_roc_curve(fpr, tpr, auc)
     return acc, confusion
 
-def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize, sentlength, hiddennodes, hiddenL1, hiddenlayer=False):
+
+def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize,
+                         sentlength, hiddennodes, hiddenL1, hiddenlayer=False):
     sequences = tokenizer.texts_to_sequences(input_data)
     word_index = tokenizer.word_index
     max_words = len(word_index)
     data = pad_sequences(sequences, maxlen=sentlength, padding="post", truncating="post")
-    #################################################
     model = Sequential()
     model.add(Embedding(max_words + 1, output_dim=embdim, input_length=sentlength,
                         embeddings_regularizer=regularizers.l1(embreg)))
@@ -82,9 +87,7 @@ def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize, s
             patience=5
         )
     ]
-
     model.compile(optimizer=optimizers.rmsprop(lr=learning_rate), loss='binary_crossentropy', metrics=['acc'])
-    model.summary()
 
     history = model.fit(data, y_train,
                         epochs=1500,
@@ -116,7 +119,8 @@ y_train = np.asarray(y_train_dich)
 text = X_train.title
 text = text.values.tolist()
 tokenizer = Tokenizer(filters='', lower=True)
-tokenizer.fit_on_texts(texts=text) #important, this fitted tokenizer should also be used to convert test data to sequences
+tokenizer.fit_on_texts(texts=text)
+#important, this fitted tokenizer should also be used to convert test data to sequences
 sequences = tokenizer.texts_to_sequences(X_train.title)
 word_index = tokenizer.word_index
 print('found %s unique tokens.' % len(word_index))
@@ -125,7 +129,6 @@ inv_map = {v: k for k, v in word_index.iteritems()}
 
 #write words and their sequence code - needs to be done only once
 write_words = False
-
 if write_words:
     with open('words_RAW_HLN.csv', 'wb') as f:  # If using python 3 use 'w'
         w = csv.DictWriter(f, inv_map.keys())
@@ -139,7 +142,6 @@ if write_words:
 ###### DEFINE NETWORK ARCHITECTURES AND PROCESS ###########
 ###########################################################
 ###########################################################
-
 
 def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_layer=False, LSTM_layer=False):
     type = type_of_network
@@ -336,20 +338,19 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         startpoint += 1
 
 
-
 ###########################################################
 ###########################################################
 ###################### RUN NETWORKS #######################
 ###########################################################
 ###########################################################
 
-
 run_networks = False
 
 if run_networks:
     # SENTENCES_RAW COMES FROM THE DESCRIPTIVES.PY FILE
     from descriptive import sentences_raw
-    network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average', 'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
+    network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average',
+                     'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
     for type in network_types:
         neural_net_analysis(type, startpoint=0)
 
@@ -359,16 +360,18 @@ if run_networks:
 #################   TEST DATA FITTING   ###################
 ###########################################################
 ###########################################################
+
 sequences = tokenizer.texts_to_sequences(X_test.title)
 word_index = tokenizer.word_index
 print('found %s unique tokens.' % len(word_index))
 max_words = len(word_index)
-inv_map = {v: k for k, v in word_index.iteritems()}
 data_test = pad_sequences(sequences, maxlen=16, padding="post", truncating="post")
 y_test = np.asarray(y_test_dich)
 
 
-best_performing_models = ['feedforward_embed21.hdf5', 'feedforward_embed_hidden101.hdf5', 'feedforward_embed_average25.hdf5', 'feedforward_embed_average_hidden51.hdf5', 'LSTM_137.hdf5', 'LSTM_hidden163.hdf5']
+best_performing_models = ['feedforward_embed21.hdf5', 'feedforward_embed_hidden101.hdf5',
+                          'feedforward_embed_average25.hdf5', 'feedforward_embed_average_hidden51.hdf5',
+                          'LSTM_137.hdf5', 'LSTM_hidden163.hdf5']
 
 acc_FF1, conf_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
 acc_FF2, conf_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
