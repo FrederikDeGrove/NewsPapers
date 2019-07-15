@@ -3,10 +3,9 @@ import numpy as np
 from collections import Counter
 import pprint
 import matplotlib.pyplot as plt
-from wordcloud import WordCloud
 
 
-plotting = True
+plotting = False
 
 #################################################
 #################################################
@@ -14,7 +13,7 @@ plotting = True
 #################################################
 #################################################
 
-HLN = False
+HLN = True
 
 if HLN:
     datfile = "HLN_ML_data_final_NN_final.csv"
@@ -102,25 +101,6 @@ if plotting:
     plt.bar(index, value, bar_width, color="green", fc=(0, 0.3, 0.3, 0.3))
     #ax2.set_title('Barplot for first 500 words of raw text')
     ax2.set_yticks(np.arange(0,60000, 10000))
-
-
-
-'''
-wc = WordCloud().generate_from_frequencies(dict(count_words_pre.most_common(500)))
-fig = plt.figure(figsize=(18, 60), dpi=80)
-ax1 = fig.add_subplot(2,1,1)
-ax1.set_title('WordCloud for 500 most common words - preprocessed')
-plt.imshow(wc, interpolation="bilinear")
-plt.axis("off")
-plt.show()
-ax2 = fig.add_subplot(2,1,2)
-ax2.set_title('WordCloud for 500 most common words - raw')
-wc = WordCloud().generate_from_frequencies(dict(count_words_raw.most_common(500)))
-#plt.figure()
-plt.imshow(wc, interpolation="bilinear")
-plt.axis("off")
-#plt.show()
-'''
 
 
 #getting number of words per sentence
