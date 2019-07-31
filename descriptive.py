@@ -36,14 +36,27 @@ def plot_words(wordcounter, number):
     return indexes, values
 
 
+def get_data(datfile, rawfile):
+    # getting pre-processed data
+    dat_pre = pd.read_csv(datfile, index_col=None)
+    dat_pre.drop(['Unnamed: 0'], inplace=True, axis=1)
+    dat_pre.title = dat_pre.title.astype("str")
+    dat_pre.title_lengths = dat_pre.title_lengths.astype("float64")
+    # getting the raw data
+    dat_raw = pd.read_csv(rawfile, index_col=None)
+    dat_raw.drop(['Unnamed: 0'], inplace=True, axis=1)
+    dat_raw.title = dat_raw.title.astype("str")
+    return dat_pre, dat_raw
+
+
 #################################################
 #################################################
 ########            TITLES             ##########
 #################################################
 #################################################
 
-plotting = True
-HLN = True
+plotting = False
+HLN = False
 
 if HLN:
     datfile = "HLN_ML_data_final_NN_final.csv"
@@ -52,18 +65,7 @@ else:
     datfile = "DM_ML_data_final_NN_final.csv"
     rawfile = "raw_DM_final.csv"
 
-
-# getting pre-processed data
-dat_pre = pd.read_csv(datfile,  index_col=None)
-dat_pre.drop(['Unnamed: 0'], inplace=True, axis = 1)
-dat_pre.title = dat_pre.title.astype("str")
-dat_pre.title_lengths = dat_pre.title_lengths.astype("float64")
-
-
-# getting the raw data
-dat_raw = pd.read_csv(rawfile, index_col = None)
-dat_raw.drop(['Unnamed: 0'], inplace=True, axis=1)
-dat_raw.title = dat_raw.title.astype("str")
+dat_pre, dat_raw = get_data(datfile, rawfile)
 
 title_pre = list(dat_pre.title)
 title_raw = list(dat_raw.title)
@@ -186,3 +188,36 @@ df2.boxplot(by='hasNumbers')
 df2 = dat_pre[['hasSubTitle', 'views']]
 df2.boxplot(by='hasSubTitle')
 
+
+
+
+#################################################
+#################################################
+#########    VOCABULARY OVERLAP     #############
+#################################################
+#################################################
+
+datfile_HLN = "HLN_ML_data_final_NN_final.csv"
+rawfile_HLN = "raw_HLN_final.csv"
+datfile_DM = "DM_ML_data_final_NN_final.csv"
+rawfile_DM = "raw_DM_final.csv"
+
+dat_pre_HLN, dat_raw_HLN = get_data(datfile_HLN, rawfile_HLN)
+dat_pre_DM, dat_raw_DM = get_data(datfile_DM, rawfile_DM)
+
+title_pre_HLN = list(dat_pre_HLN.title)
+title_raw_HLN = list(dat_raw_HLN.title)
+title_pre_DM = list(dat_pre_DM.title)
+title_raw_DM = list(dat_raw_DM.title)
+
+
+# nubmer of words per title
+allwords_pre_HLN, unique_words_pre_HLN, count_words_pre_HLN = word_occurence(title_pre_HLN)
+allwords_raw_HLN, unique_words_raw_HLN, count_words_raw_HLN = word_occurence(title_raw_HLN)
+
+allwords_pre_DM, unique_words_pre_DM, count_words_pre_DM = word_occurence(title_pre_DM)
+allwords_raw_DM, unique_words_raw_DM, count_words_raw_DM = word_occurence(title_raw_DM)
+
+# how much of the unique words are the same?
+len(set(unique_words_pre_DM).intersection(set(unique_words_pre_HLN)))
+len(set(unique_words_raw_DM).intersection(set(unique_words_raw_HLN)))
