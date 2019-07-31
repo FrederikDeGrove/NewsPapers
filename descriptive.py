@@ -42,7 +42,7 @@ def plot_words(wordcounter, number):
 #################################################
 #################################################
 
-plotting = False
+plotting = True
 HLN = True
 
 if HLN:
@@ -156,3 +156,33 @@ ax1.spines['bottom'].set_visible(False)
 ax1.spines['left'].set_visible(False)
 plt.hist(dat_pre.views[dat_pre.views < dat_pre.views.quantile(.90)], bins = 100, color="lightblue")
 plt.axvline(dat_pre.views.quantile(.50), color='grey')
+
+
+#################################################
+#################################################
+##############    FEATURES          #############
+#################################################
+#################################################
+
+
+# Has named entity
+dat_pre.hasNamedEntity.value_counts()
+# Has Numbers
+dat_pre.hasNumbers.value_counts()
+# Has Subtitle
+dat_pre.hasSubTitle.value_counts()
+# Polarity
+dat_pre.polarity.describe()
+# Subjectivity
+dat_pre.subjectivity.describe()
+
+
+df2 = dat_pre[['hasNamedEntity', 'views']]
+df2.boxplot(by='hasNamedEntity')
+
+df2 = dat_pre[['hasNumbers', 'views']]
+df2.boxplot(by='hasNumbers')
+
+df2 = dat_pre[['hasSubTitle', 'views']]
+df2.boxplot(by='hasSubTitle')
+
