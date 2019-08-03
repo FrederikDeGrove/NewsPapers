@@ -5,13 +5,26 @@ from keras.models import load_model
 import csv
 
 
+
+
+def predict_for_sentence(index_input_from_embeddings):
+    sent = ' '.join(index_input_from_embeddings)
+    tempdat = tokenizer.texts_to_sequences([sent])
+    data_test = pad_sequences(tempdat, maxlen=16, padding="post", truncating="post")
+    return model.predict(data_test)
+
+def predict_for_word(word):
+    tempdat = tokenizer.texts_to_sequences([word])
+    data_test = pad_sequences(tempdat, maxlen=16, padding="post", truncating="post")
+    return model.predict(data_test)
+
+
+
 ###########################################################
 ###########################################################
 ################### DATA PREPARATION  #####################
 ###########################################################
 ###########################################################
-
-dat = pd.read_csv("words_RAW_HLN.csv", index_col = None)
 
 
 with open('words_RAW_HLN.csv') as f:
@@ -23,8 +36,8 @@ indices = []
 for item in row1:
         indices.append(int(item))
 
-indices .insert(0, 0)
-row2.insert(0, "empty")
+#indices .insert(0, 0)
+#row2.insert(0, "empty")
 
 index_to_words = dict(zip(row2, indices))
 
@@ -78,8 +91,81 @@ for i, txt in enumerate(indices):
 max_embeds_D1 = full.sort_values(by=['dim1'], ascending=False)
 max_embeds_D2 = full.sort_values(by=['dim2'], ascending=False)
 
+# highest scores
 max_embeds_D1.iloc[1:10]
 max_embeds_D2.iloc[1:10]
+
+# lowest scores
+max_embeds_D1.iloc[-10:]
+max_embeds_D2.iloc[-10:]
+
+W_Layer_1 = model.get_weights()[1]
+B_Layer_1 = model.get_weights()[2]
+W_Layer_2 = model.get_weights()[3]
+B_Layer_2 = model.get_weights()[4]
+
+
+pd.DataFrame(W_Layer_1).describe()
+pd.DataFrame(B_Layer_1).describe()
+pd.DataFrame(W_Layer_2).describe()
+
+
+
+
+# temp test some words
+text = X_train.title
+text = text.values.tolist()
+tokenizer = Tokenizer(filters='', lower=True)
+tokenizer.fit_on_texts(texts=text)
+
+
+
+
+predict_for_sentence(max_embeds_D1.iloc[-16:].index)
+predict_for_sentence(max_embeds_D2.iloc[-16:].index)
+predict_for_sentence(max_embeds_D1.iloc[:15].index)
+predict_for_sentence(max_embeds_D2.iloc[:15].index)
+
+#get words with top and bottom embedding scores for both dimensions
+max_embeds_D1.iloc[-10:]
+max_embeds_D2.iloc[-10:]
+max_embeds_D1.iloc[:10]
+max_embeds_D2.iloc[:10]
+
+
+#what about zero scores on embeddings
+threshold = .000001
+zeros = embeds[(embeds[0] > -threshold) & (embeds[0] < threshold) & (embeds[1] > -threshold) & (embeds[1] < threshold) ]
+zeros.shape
+#each word gives a slight increase in prediction
+predict_for_sentence(zeros.iloc[:16].index)
+predict_for_sentence(zeros.iloc[:6].index)
+
+
+#what about slightly positive values on embeddings
+threshold1 = .02
+threshold2 = .03
+
+small = embeds[(embeds[0] > threshold1) & (embeds[0] < threshold2) & (embeds[1] > threshold1) & (embeds[1] < threshold2) ]
+small.shape
+#even very close to zero word embeddings give a prediction > .50
+predict_for_sentence(small.iloc[:16].index)
+small[:16]
+
+
+#let's predict for each of the words in the vocabulary what they would uniquely contribute
+predictions = dict()
+
+for word in index_to_words.keys():
+    predictions[word] = predict_for_word(word)[0][0]
+
+preds = pd.DataFrame.from_dict(predictions, orient='index')
+preds.columns= ['prediction']
+preds.sort_values(by='prediction', ascending=False)
+preds.to_csv("word_predictions_embeddings.csv")
+
+predict_for_sentence(['overlijdt'])
+predict_for_sentence(['overlijdt', 'overlijdt'])
 
 
 
