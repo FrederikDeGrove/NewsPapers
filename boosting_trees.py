@@ -11,12 +11,13 @@ from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, accuracy
 import matplotlib.pyplot as plt
 from scipy.sparse import hstack
 
-#setting some options for pandas
+
+# setting some options for pandas
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 500)
 
-# function for plotting ROC curve
 def plot_roc_curve(fpr, tpr, auc):
+    # function for plotting ROC curve
     fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
     ax1.spines['top'].set_visible(False)
@@ -39,6 +40,7 @@ def plot_roc_curve(fpr, tpr, auc):
 ################### DATA PREPARATION  #####################
 ###########################################################
 ###########################################################
+
 # read in the data from the saved datafile
 dat = pd.read_csv("HLN_ML_data_final_NN_final.csv",  index_col=None)
 dat.drop(['Unnamed: 0'], inplace=True, axis = 1)
@@ -47,10 +49,10 @@ dat.subjectivity = dat.subjectivity.astype("float64")
 dat.polarity = dat.polarity.astype("float64")
 dat.title_lengths = dat.title_lengths.astype("float64")
 
-###define cutoff
+# define cutoff
 cutoff = dat.views.median()
 
-#preparing splits
+# preparing splits
 features = [i for i in dat.columns.values if i not in ['views']]
 target = 'views'
 X_train, X_test, y_train, y_test = train_test_split(dat[features], dat[target], test_size=0.15, random_state=123)
@@ -170,6 +172,7 @@ hyperparameters = {'features__text__vectorizer__max_features' : [5000, 10000, 20
                    'classifier__subsample' : [0.7, 1],
                    'features__text__vectorizer__ngram_range': [(1,1), (1,2)]
                   }
+
 clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
 clf.fit(X_train, y_train_dich)
 
@@ -226,6 +229,8 @@ plot_roc_curve(fpr, tpr, auc)
 ################   FEATURE IMPORTANCE   ###################
 ###########################################################
 ###########################################################
+
+
 names = list(text_vectorizer.vocabulary_.keys())
 names.extend(('hasNamedEntity', 'hasNumbers', 'hasSubTitle', 'title_lengths', 'polarity', 'subjectivity'))
 len(names)
