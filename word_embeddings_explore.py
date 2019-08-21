@@ -159,12 +159,23 @@ preds = pd.DataFrame.from_dict(predictions, orient='index')
 preds.columns= ['prediction']
 preds.sort_values(by='prediction', ascending=False)
 # preds.to_csv("word_predictions_embeddings.csv")
-# predictions = pd.read_csv("word_predictions_embeddings.csv")
+predictions = pd.read_csv("word_predictions_embeddings.csv")
 
 
 # have a look what happens when predicting with the top word once and twice
 predict_for_sentence(['overlijdt'])
-predict_for_sentence(['overlijdt', 'overlijdt'])
+predict_for_sentence([' ', 'overlijdt'])
+predict_for_sentence(['ditiseentest', 'overlijdt'])
+
+predict_for_sentence(['het'])
+predict_for_sentence(['bib'])
+predict_for_sentence(['het', 'overlijdt'])
+predict_for_sentence(['overlijdt', 'het'])
+predict_for_sentence(['overlijdt', 'het', 'de'])
+predict_for_sentence(['overlijdt', 'de', 'het'])
+predict_for_sentence(['bib', 'overlijdt'])
+predict_for_sentence(['overlijdt', 'bib'])
+
 
 # let's have a look at the weight and bias parameters
 W_Layer_1 = model.get_weights()[1]
@@ -173,6 +184,9 @@ W_Layer_2 = model.get_weights()[3]
 B_Layer_2 = model.get_weights()[4]
 
 pd.DataFrame(W_Layer_1).describe()
+temp = W_Layer_1.reshape(3200)
+pd.DataFrame(temp).describe()
+
 pd.DataFrame(B_Layer_1).describe()
 pd.DataFrame(W_Layer_2).describe()
 B_Layer_2
