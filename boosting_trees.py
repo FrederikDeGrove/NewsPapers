@@ -10,7 +10,7 @@ from xgboost import XGBClassifier
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, accuracy_score
 import matplotlib.pyplot as plt
 from scipy.sparse import hstack
-
+import pickle
 
 # setting some options for pandas
 pd.set_option('display.max_columns', 20)
@@ -176,7 +176,9 @@ hyperparameters = {'features__text__vectorizer__max_features' : [5000, 10000, 20
 clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
 clf.fit(X_train, y_train_dich)
 
+#pickle.dump(clf, open("final_XGBmodel.pickle.dat", "wb"))
 clf.best_params_
+
 # refit on test data using best settings to obtain final results
 #clf.refit
 #preds = clf.predict(X_test)
@@ -247,6 +249,7 @@ top10 = most_important.nlargest(10, 'importance_score')
 top20 = most_important.nlargest(20, 'importance_score')
 print(top20[6:16])
 
+top20.to_csv("top20_features.csv")
 
 index, value = top10.feature, top10.importance_score
 fig = plt.figure(figsize=(15, 15), dpi=150)
@@ -339,3 +342,64 @@ ax1.spines['bottom'].set_visible(False)
 ax1.spines['left'].set_visible(False)
 ax1.set_xlabel("Feature importance")
 plt.show()
+
+
+###########################################################
+###########################################################
+###############   WITHOUT FEATURE ENGINEERING   ###########
+###########################################################
+###########################################################
+
+text = Pipeline([
+                ('selector', TextSelector(key='title')),
+                ('vectorizer', CountVectorizer(analyzer ="word"))
+            ])
+pipeline = Pipeline([
+                ('text',text),
+                ('classifier', XGBClassifier(objective='binary:logistic', booster='gbtree'))
+            ])
+
+hyperparameters = {'text__vectorizer__max_features' : [5000, 10000, 20000],
+                   'text__vectorizer__max_df': [0.8, 1],
+                   'classifier__max_depth': [5, 20, 50],
+                   'classifier__learning_rate': [0.1, 0.3],
+                   'classifier__subsample' : [0.7, 1],
+                   'text__vectorizer__ngram_range': [(1,1), (1,2)]
+                  }
+
+clf = GridSearchCV(pipeline, hyperparameters, cv=5, return_train_score=True)
+clf.fit(X_train, y_train_dich)
+clf.best_params_
+#pd.DataFrame(clf.cv_results_).to_csv("XGBOOST_no_features_final_ngram.csv")
+#pickle.dump(clf, open("final_XGBmodel_no_feat.pickle.dat", "wb"))
+
+'''
+{'classifier__learning_rate': 0.3,
+ 'classifier__max_depth': 50,
+ 'classifier__subsample': 0.7,
+ 'text__vectorizer__max_df': 0.8,
+ 'text__vectorizer__max_features': 20000,
+ 'text__vectorizer__ngram_range': (1, 2)}
+'''
+text_vectorizer = CountVectorizer(analyzer ="word", max_df=.8, max_features=20000, ngram_range=(1,2))
+encoder = OneHotEncoder(categories='auto')
+scaler = StandardScaler()
+# make features ready for implementation
+title_S = text_vectorizer.fit_transform(dat.title)
+#split dataset and make binary dependent
+X_train_final, X_test_final, y_train_final, y_test_final = train_test_split(title_S , dat[target], test_size=0.15, random_state=123)
+y_train_dich_final = [0 if i <= cutoff else 1 for i in y_train_final]
+y_test_dich_final = [0 if i <= cutoff else 1 for i in y_test_final]
+#fit model
+model= XGBClassifier(objective='binary:logistic', booster='gbtree', learning_rate=0.3, max_depth=50, subsample=0.7)
+model.fit(X_train_final, y_train_dich_final)
+# get predictions
+preds = model.predict(X_test_final)
+probs = model.predict_proba(X_test_final)
+# compute metrics and print ROC curve
+print(accuracy_score(y_test_dich_final, preds))
+print(confusion_matrix(y_test_dich_final, preds))
+auc = roc_auc_score(y_test_dich_final, probs[:, 1])
+fpr, tpr, thresholds = roc_curve(y_test_dich_final, probs[:, 1])
+print(auc)
+plot_roc_curve(fpr, tpr, auc)
