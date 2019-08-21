@@ -244,9 +244,6 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         if hidden_layer:
             layer2_size = combination['nodes_layer_2']
             layer2_regularization = combination['layer2_regularzation']
-        # opti = optimizers.adagrad(lr=combination['learning-rate'])
-        # adagrad seems a good choice for all the different words we are using?
-        # https://www.reddit.com/r/MachineLearning/comments/3i6fp9/what_optimization_methods_work_best_for_lstms/
         opti = optimizers.rmsprop(lr=combination['learning-rate'])  # set optimizer and its learning rate
 
         data = pad_sequences(sequences, maxlen=sentence_length, padding="post", truncating="post")
@@ -371,7 +368,7 @@ y_test = np.asarray(y_test_dich)
 
 best_performing_models = ['feedforward_embed21.hdf5', 'feedforward_embed_hidden101.hdf5',
                           'feedforward_embed_average25.hdf5', 'feedforward_embed_average_hidden51.hdf5',
-                          'LSTM_137.hdf5', 'LSTM_hidden163.hdf5']
+                          'LSTM_1137.hdf5', 'LSTM_hidden163.hdf5']
 
 acc_FF1, conf_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
 acc_FF2, conf_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
