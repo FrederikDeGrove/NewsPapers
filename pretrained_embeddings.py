@@ -296,8 +296,13 @@ if run_networks:
         neural_net_analysis(type, embedding_matrix, fixed_pretrain=True, startpoint=0)
         neural_net_analysis(type, embedding_matrix, fixed_pretrain=False, startpoint=0)
 
-#neural_net_analysis('feedforward_embed_average', embedding_matrix, startpoint=0, fixed_pretrain = True)
 
-neural_net_analysis('feedforward_embed_average', embedding_matrix, startpoint=3, fixed_pretrain = False)
-neural_net_analysis('LSTM_1', embedding_matrix, startpoint=0, fixed_pretrain = False)
-neural_net_analysis('LSTM_hidden', embedding_matrix, startpoint=0, fixed_pretrain = False)
+#neural_net_analysis('feedforward_embed_average', embedding_matrix, startpoint=0, fixed_pretrain = False)
+#neural_net_analysis('feedforward_embed_average_hidden', embedding_matrix, startpoint=0, fixed_pretrain = False)
+#neural_net_analysis('LSTM_1', embedding_matrix, startpoint=0, fixed_pretrain = False)
+#neural_net_analysis('LSTM_hidden', embedding_matrix, startpoint=0, fixed_pretrain = False)
+
+#neural_net_analysis('feedforward_embed_average', embedding_matrix, startpoint=0, fixed_pretrain = True)
+neural_net_analysis('feedforward_embed_average_hidden', embedding_matrix, startpoint=4, fixed_pretrain = True)
+neural_net_analysis('LSTM_1', embedding_matrix, startpoint=0, fixed_pretrain = True)
+neural_net_analysis('LSTM_hidden', embedding_matrix, startpoint=0, fixed_pretrain = True)
