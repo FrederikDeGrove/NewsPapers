@@ -399,7 +399,45 @@ probs = model.predict_proba(X_test_final)
 # compute metrics and print ROC curve
 print(accuracy_score(y_test_dich_final, preds))
 print(confusion_matrix(y_test_dich_final, preds))
-auc = roc_auc_score(y_test_dich_final, probs[:, 1])
-fpr, tpr, thresholds = roc_curve(y_test_dich_final, probs[:, 1])
+
+
+# test generalizability
+
+
+###########################################################
+###########################################################
+################### DATA DE MORGEN    #####################
+###########################################################
+###########################################################
+
+# read in the data from the saved datafile
+dat2 = pd.read_csv("DM_ML_data_final_NN_final.csv",  index_col=None)
+dat2.drop(['Unnamed: 0'], inplace=True, axis = 1)
+dat2.title = dat2.title.astype("str")
+
+###define cutoff
+cutoff = dat2.views.median()
+
+text_vectorizer2 = CountVectorizer(analyzer ="word", max_df=.8, max_features=20000, ngram_range=(1, 2))
+encoder = OneHotEncoder(categories='auto')
+scaler = StandardScaler()
+# make features ready for implementation
+#split dataset and make binary dependent
+title_S = text_vectorizer.fit_transform(dat2.title)
+
+X_test_DM = title_S
+y_test_DM = dat2.views
+y_test_dich_DM = [0 if i <= cutoff else 1 for i in y_test_DM]
+len(y_test_dich_DM)
+
+preds = model.predict(X_test_DM)
+probs = model.predict_proba(X_test_DM)
+# compute metrics and print ROC curve
+print(accuracy_score(y_test_dich_DM, preds))
+print(confusion_matrix(y_test_dich_DM, preds))
+auc = roc_auc_score(y_test_dich_DM, probs[:, 1])
+fpr, tpr, thresholds = roc_curve(y_test_dich_DM, probs[:, 1])
 print(auc)
 plot_roc_curve(fpr, tpr, auc)
+
+
