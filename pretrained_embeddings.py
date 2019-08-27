@@ -38,7 +38,7 @@ def load_and_test_network(name_network, test_data_X, test_data_Y):
 
 
 def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize,
-                         sentlength, hiddennodes, hiddenL1, hiddenlayer=False):
+                         sentlength, hiddennodes, hiddenL1, hiddenlayer=False, fixed_pretrain=False):
     sequences = tokenizer.texts_to_sequences(input_data)
     word_index = tokenizer.word_index
     max_words = len(word_index)
@@ -50,6 +50,9 @@ def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize,
     if hiddenlayer:
         model.add(Dense(hiddennodes, activation='relu', kernel_regularizer=regularizers.l1(hiddenL1)))
     model.add(Dense(1, activation='sigmoid'))
+
+    model.layers[0].set_weights([embedding_matrix])
+    model.layers[0].trainable = fixed_pretrain
 
     callback_list = [
         callbacks.EarlyStopping(
@@ -361,58 +364,63 @@ data_test = pad_sequences(sequences, maxlen=16, padding="post", truncating="post
 y_test = np.asarray(y_test_dich)
 
 
-best_performing_models = ['feedforward_embed2_PT_FALSE.hdf5', 'feedforward_embed_hidden2_PT_FALSE.hdf5',
-                          'feedforward_embed_average0_PT_FALSE.hdf5', 'feedforward_embed_average_hidden3_PT_FALSE.hdf5',
+best_performing_models_FIXED = ['feedforward_embed2_PT_FALSE.hdf5', 'feedforward_embed_hidden2_PT_FALSE.hdf5',
+                          'none', 'none',
                           'LSTM_113_PT_FALSE.hdf5', 'LSTM_hidden24_PT_FALSE.hdf5']
 
-acc_FF1, conf_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
-acc_FF2, conf_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
-#loss_FF3, acc_FF3 = load_and_test_network(best_performing_models[2], data_test, y_test ) - model saving did not work
-# loss_FF4, acc_FF4 = load_and_test_network(best_performing_models[3], data_test, y_test ) - model saving did not work
-acc_LSTM1, conf_LSTM1 = load_and_test_network(best_performing_models[4], data_test, y_test)
-acc_LSTM2, conf_LSTM2 = load_and_test_network(best_performing_models[5], data_test, y_test)
+
+best_performing_models_TRAINABLE = ['feedforward_embed2_PT_TRUE.hdf5', 'feedforward_embed_hidden10_PT_TRUE.hdf5',
+                          'none', 'none',
+                          'LSTM_118_PT_TRUE.hdf5', 'LSTM_hidden8_PT_TRUE.hdf5']
+
+
+acc_FF1, conf_FF1 = load_and_test_network(best_performing_models_FIXED[0], data_test, y_test)
+acc_FF2, conf_FF2 = load_and_test_network(best_performing_models_FIXED[1], data_test, y_test )
+acc_LSTM1, conf_LSTM1 = load_and_test_network(best_performing_models_FIXED[4], data_test, y_test)
+acc_LSTM2, conf_LSTM2 = load_and_test_network(best_performing_models_FIXED[5], data_test, y_test)
 
 
 # for averaging, saving models did not work. This is probably due to the custom lambda function we implemented for averaging
 # We run them again with optimal hyperparameters.
-'''
-learning-rate	0.001
-embedding_dimensions	50
-embedding_regularization	1E-05
-batchSize	4096
-sentence_length	16
-'''
-# for the feedforward_embed_average + 1 hidden layer:
-'''
-learning-rate	0.001
-embedding_dimensions	50
-embedding_regularization	1E-05
-batchSize	4096
-layer2_regularzation	1E-05
-nodes_layer_2	100
-sentence_length	16
-'''
-embedding_average = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.00001, batchsize=256, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False)
-embedding_average_hidden = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.0001, batchsize=256, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=True)
+
+# non trainable word embeddings
+embedding_average = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.00001, batchsize=256, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False, fixed_pretrain=False)
+embedding_average_hidden = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.0001, batchsize=256, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=True, fixed_pretrain=False)
 
 # averaging no hidden layer
 preds_ea = embedding_average.model.predict_classes(data_test)
 probs_ea = embedding_average.model.predict(data_test)
 acc_ea = accuracy_score(y_test, preds_ea)
 confusion_ea = confusion_matrix(y_test, preds_ea)
-auc_ea = roc_auc_score(y_test, probs_ea)
-fpr_ea, tpr_ea, thresholds_ea = roc_curve(y_test, probs_ea)
-plot_roc_curve(fpr_ea, tpr_ea, auc_ea)
 
 # averaging + 1 hidden layer
 preds_eah = embedding_average_hidden.model.predict_classes(data_test)
 probs_eah = embedding_average_hidden.model.predict(data_test)
 acc_eah = accuracy_score(y_test, preds_eah)
 confusion_eah = confusion_matrix(y_test, preds_eah)
-auc_eah = roc_auc_score(y_test, probs_eah)
-fpr_eah, tpr_eah, thresholds_eah = roc_curve(y_test, probs_eah)
-plot_roc_curve(fpr_eah, tpr_eah, auc_eah)
 
+
+#trainable word embeddings
+
+acc_FF1_T, conf_FF1_T = load_and_test_network(best_performing_models_TRAINABLE[0], data_test, y_test)
+acc_FF2_T, conf_FF2_T = load_and_test_network(best_performing_models_TRAINABLE[1], data_test, y_test )
+acc_LSTM1_T, conf_LSTM1_T = load_and_test_network(best_performing_models_TRAINABLE[4], data_test, y_test)
+acc_LSTM2_T, conf_LSTM2_T = load_and_test_network(best_performing_models_TRAINABLE[5], data_test, y_test)
+
+embedding_average_T = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False, fixed_pretrain=True)
+embedding_average_hidden_T = custom_model_network(X_train.title, learning_rate=.001, embdim=300, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=True, fixed_pretrain=True)
+
+# averaging no hidden layer
+preds_ea_T = embedding_average_T.model.predict_classes(data_test)
+probs_ea_T = embedding_average_T.model.predict(data_test)
+acc_ea_T = accuracy_score(y_test, preds_ea_T)
+confusion_ea_T = confusion_matrix(y_test, preds_ea)
+
+# averaging + 1 hidden layer
+preds_eah_T_H = embedding_average_hidden_T.model.predict_classes(data_test)
+probs_eah_T_H = embedding_average_hidden_T.model.predict(data_test)
+acc_eah_T_H = accuracy_score(y_test, preds_eah_T_H)
+confusion_eah_T_H = confusion_matrix(y_test, preds_eah)
 
 ###########################################################
 ###########################################################
@@ -442,11 +450,11 @@ max_words = len(word_index)
 data_test_DM = pad_sequences(sequences_DM, maxlen=16, padding="post", truncating="post")
 
 
-
-load_and_test_network(best_performing_models[0], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[1], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[4], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[5], data_test_DM, y_test_DM, plot=False)
+#fixed embeddings
+load_and_test_network(best_performing_models_FIXED[0], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_FIXED[1], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_FIXED[4], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_FIXED[5], data_test_DM, y_test_DM)
 
 
 probs = embedding_average.model.predict(data_test_DM)
@@ -456,5 +464,22 @@ print(acc)
 
 probs = embedding_average_hidden.model.predict(data_test_DM)
 preds = embedding_average_hidden.model.predict_classes(data_test_DM)
-acc = accuracy_score(y_test_DM, preds)
-print(acc)
+acc_H = accuracy_score(y_test_DM, preds)
+print(acc_H)
+
+#trainable embeddings
+load_and_test_network(best_performing_models_TRAINABLE[0], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_TRAINABLE[1], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_TRAINABLE[4], data_test_DM, y_test_DM)
+load_and_test_network(best_performing_models_TRAINABLE[5], data_test_DM, y_test_DM)
+
+
+probs = embedding_average_T.model.predict(data_test_DM)
+preds = embedding_average_T.model.predict_classes(data_test_DM)
+acc_T = accuracy_score(y_test_DM, preds)
+print(acc_T)
+
+probs = embedding_average_hidden_T.model.predict(data_test_DM)
+preds = embedding_average_hidden_T.model.predict_classes(data_test_DM)
+acc_H_T = accuracy_score(y_test_DM, preds)
+print(acc_H_T)
