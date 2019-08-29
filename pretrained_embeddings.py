@@ -311,7 +311,7 @@ max_words = len(word_index)
 ###########################################################
 name = "cc.nl.300.vec"
 embeddings_index = dict()
-f = open(name)
+f = open(name, encoding="utf-8")
 for line in f:
     values = line.split()
     word = values[0].lower()
