@@ -401,7 +401,45 @@ print(accuracy_score(y_test_dich_final, preds))
 print(confusion_matrix(y_test_dich_final, preds))
 
 
-# test generalizability
+
+
+###########################################################
+###########################################################
+################   FEATURE IMPORTANCE   ###################
+###########################################################
+###########################################################
+
+
+names = list(text_vectorizer.vocabulary_.keys())
+feat_imps = model.feature_importances_
+len(feat_imps )
+pd.DataFrame(feat_imps).describe()
+
+imp = pd.DataFrame(zip(feat_imps, names))
+imp.columns = ["importance_score", "feature"]
+most_important = imp[imp.importance_score > 0.0001]
+top10 = most_important.nlargest(10, 'importance_score')
+
+top20 = most_important.nlargest(20, 'importance_score')
+print(top20[6:16])
+
+top20.to_csv("top20_features_no_engineering.csv")
+
+index, value = top10.feature, top10.importance_score
+fig = plt.figure(figsize=(15, 15), dpi=150)
+bar_width = 0.5
+ax1 = fig.add_subplot(1,1,1)
+ax1.set_yticklabels(index)
+ax1.invert_yaxis()
+ax1.barh(index, value, color="lightblue")
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+ax1.spines['bottom'].set_visible(False)
+ax1.spines['left'].set_visible(False)
+ax1.set_xlabel("Feature importance")
+plt.show()
+
+
 
 
 ###########################################################
