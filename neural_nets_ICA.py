@@ -1,4 +1,4 @@
-from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, accuracy_score
+from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, accuracy_score, precision_score
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.layers import Embedding
@@ -145,6 +145,13 @@ if write_words:
 ###### DEFINE NETWORK ARCHITECTURES AND PROCESS ###########
 ###########################################################
 ###########################################################
+from keras import backend as K
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
 
 def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_layer=False, LSTM_layer=False):
     type = type_of_network
@@ -154,7 +161,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = False
         hidden_layer = False
         LSTM_layer = False
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -165,7 +172,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = False
         hidden_layer = True
         LSTM_layer = False
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -178,7 +185,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = True
         hidden_layer = False
         LSTM_layer = False
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -189,7 +196,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = True
         hidden_layer = True
         LSTM_layer = False
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -202,7 +209,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = False
         hidden_layer = False
         LSTM_layer = True
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -215,7 +222,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         averaging = False
         hidden_layer = True
         LSTM_layer = True
-        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 95)],
+        param_grid = {'sentence_length': [np.percentile(sentences_preprocessed, 99)],
                       'batchSize': [2 ** 8, 2 ** 12, 2 ** 13],
                       'embedding_dimensions': [1, 2, 10, 50],
                       'embedding_regularization': [.00001, .0001],
@@ -273,7 +280,7 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
         callback_list = [
             callbacks.EarlyStopping(
                 monitor='val_loss',
-                patience=5,
+                patience=10,
                 restore_best_weights=True
             ),
 
@@ -302,21 +309,30 @@ def neural_net_analysis(type_of_network, startpoint=0, averaging=False, hidden_l
 
         time_end = datetime.datetime.now()
 
+        #compute precision
+        preds_model = model.predict_classes(data)
+        true = y_train
+        precision_model = precision_score(true, preds_model)
+
+
         # evaluation results
-        acc = history.history['acc']
-        val_acc = history.history['val_acc']
-        loss = history.history['loss']
-        val_loss = history.history['val_loss']
+        best_model_place = history.history['val_loss'].index(min(history.history['val_loss']))
+        val_acc = history.history['val_acc'][best_model_place]
+        #precision_score = history.history['val_precision_m'][best_model_place]
+        val_loss_latest_recorded = history.history['val_loss'][-1]
+        val_loss_lowest = history.history['val_loss'][best_model_place]
         number_parameters = history.model.count_params()
         number_layers = len(history.model.layers)
 
-        combination['max_accuracy'] = round(max(acc), 4)
-        combination['mean_accuracy'] = round(np.mean(acc), 4)
-        combination['max_val_acc'] = round(max(val_acc), 4)
-        combination['mean_val_acc'] = round(np.mean(val_acc), 4)
-        combination['sd_val_acc'] = round(np.std(val_acc), 4)
+        combination['precision_score'] = round(precision_model , 4)
+        combination['val_loss_latest_recorded'] = round(val_loss_latest_recorded, 4)
+        combination['val_loss_lowest'] = round(val_loss_lowest, 4)
+        combination['max_val_acc'] = round(val_acc, 4)
         combination['epoch_where_max_val_acc_reached'] = history.history['val_acc'].index(
             max(history.history['val_acc']))
+        combination['epoch_where_min_val_loss_reached'] = history.history['val_loss'].index(
+            min(history.history['val_loss']))
+        combination['total_epochs_trained'] = len(history.history['acc'])
         combination['number_parameters'] = number_parameters
         combination['number_layers'] = number_layers
         combination['date_logged'] = date_start
@@ -350,10 +366,11 @@ run_networks = True
 if run_networks:
     # sentences_preprocessed COMES FROM THE DESCRIPTIVES.PY FILE
     from descriptive import sentences_preprocessed
-    network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'feedforward_embed_average',
-                     'feedforward_embed_average_hidden',  'LSTM_1', 'LSTM_hidden']
-    for type in network_types:
-        neural_net_analysis(type, startpoint=0)
+    network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'LSTM_1', 'LSTM_hidden']
+    #for type in network_types:
+    #    neural_net_analysis(type, startpoint=)
+neural_net_analysis('LSTM_1', startpoint=56)
+neural_net_analysis('LSTM_hidden', startpoint=0)
 
 '''
 ###########################################################
@@ -454,4 +471,90 @@ preds = embedding_average_hidden.model.predict_classes(data_test_DM)
 acc = accuracy_score(y_test_DM, preds)
 print(acc)
 
+
+
+
+from keras import backend as K
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+
+type = 'feedforward_embed'
+startpoint = 0 # if some error occurs we can pick up where we left
+
+if type == 'feedforward_embed':
+    averaging = False
+    hidden_layer = False
+    LSTM_layer = False
+    param_grid = {'sentence_length': [14],
+                  'batchSize': [2 ** 13],
+                  'embedding_dimensions': [50],
+                  'embedding_regularization': [.0001],
+                  'learning-rate': [.001]
+                  }
+
+grid_full = list(ParameterGrid(param_grid))
+grid = grid_full[startpoint:]  # this allows us to continue if we left off somewhere
+
+'''
+
+'''
+sentence_length = 14
+batch_size = 8192
+regularization = .001
+output_d = 10
+opti = optimizers.rmsprop(lr=.0001)  # set optimizer and its learning rate
+data = pad_sequences(sequences, maxlen=sentence_length, padding="post", truncating="post")
+
+
+#################################################
+model = Sequential()
+model.add(Embedding(max_words + 1, output_dim=output_d, input_length=sentence_length,
+                    embeddings_regularizer=regularizers.l1(regularization)))
+model.add(Flatten())
+model.add(Dense(1, activation='sigmoid'))
+
+callback_list = [
+    callbacks.EarlyStopping(
+        monitor='val_loss', #'val_loss',
+        patience=50,
+        restore_best_weights=True
+    ),
+
+    callbacks.ModelCheckpoint(
+        filepath="test.hdf5",
+        monitor='val_loss',
+        save_best_only=True
+    ),
+
+    # as we use adagrad, this is not needed (??)
+    callbacks.ReduceLROnPlateau(
+        monitor='val_loss',
+        factor=.2,
+        patience=5
+    )
+]
+
+model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc'])  # loss='binary_crossentropy'
+model.summary()
+
+history = model.fit(data, y_train,
+                    epochs=1500,
+                    batch_size=8192,
+                    callbacks=callback_list,
+                    validation_split=0.2)
+
+kak = load_model("test.hdf5")
+
+preds_kak = kak.predict_classes(data)
+preds_model = model.predict_classes(data)
+true = y_train
+precision_kak = precision_score(true, preds_kak)
+precision_model = precision_score(true, preds_model)
+
+print(precision_kak, precision_model)
 '''
