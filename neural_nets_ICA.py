@@ -49,14 +49,8 @@ def load_and_test_network(name_network, test_data_X, test_data_Y, plot=True):
     model = load_model(name_network)
     model.load_weights(name_network)
     preds = model.predict_classes(test_data_X)
-    probs = model.predict(test_data_X)
-    acc = accuracy_score(test_data_Y, preds)
-    confusion = confusion_matrix(test_data_Y, preds)
-    if plot:
-        auc = roc_auc_score(test_data_Y, probs)
-        fpr, tpr, thresholds = roc_curve(test_data_Y, probs)
-        plot_roc_curve(fpr, tpr, auc)
-    return acc, confusion
+    prec = precision_score(test_data_Y, preds)
+    return prec
 
 
 ###########################################################
@@ -334,189 +328,114 @@ if run_networks:
 #neural_net_analysis('LSTM_1', startpoint=56)
 neural_net_analysis('LSTM_hidden', startpoint=164)
 
-'''
 ###########################################################
 ###########################################################
 #################   TEST DATA FITTING   ###################
 ###########################################################
 ###########################################################
 
+#first fit tokenizer from code above
+
 sequences = tokenizer.texts_to_sequences(X_test.title)
 word_index = tokenizer.word_index
 print('found %s unique tokens.' % len(word_index))
 max_words = len(word_index)
-data_test = pad_sequences(sequences, maxlen=16, padding="post", truncating="post")
+data_test = pad_sequences(sequences, maxlen=14, padding="post", truncating="post")
 y_test = np.asarray(y_test_dich)
 
 
-best_performing_models = ['feedforward_embed21.hdf5', 'feedforward_embed_hidden101.hdf5',
-                          'feedforward_embed_average25.hdf5', 'feedforward_embed_average_hidden51.hdf5',
-                          'LSTM_1137.hdf5', 'LSTM_hidden163.hdf5']
 
-acc_FF1, conf_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
-acc_FF2, conf_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
-# loss_FF3, acc_FF3 = load_and_test_network(best_performing_models[2], data_test, y_test ) - model saving did not work
-# loss_FF4, acc_FF4 = load_and_test_network(best_performing_models[3], data_test, y_test ) - model saving did not work
-acc_LSTM1, conf_LSTM1 = load_and_test_network(best_performing_models[4], data_test, y_test)
-acc_LSTM2, conf_LSTM2 = load_and_test_network(best_performing_models[5], data_test, y_test)
+#########################################################################################
+FF = pd.read_csv("FF/feedforward_embed.csv")
+FF_H = pd.read_csv("FF_H/feedforward_embed_hidden.csv")
+LSTM = pd.read_csv("LSTM/LSTM_1.csv")
+LSTM_H = pd.read_csv("LSTM_H/LSTM_hidden.csv")
 
+#########################################################################################
+# best precision score
+bestFF = FF.model_number[FF.precision_score == max(FF.precision_score)]
+bestFF_H = FF_H.model_number[FF_H.precision_score == max(FF_H.precision_score)]
+bestLSTM = LSTM.model_number[LSTM.precision_score == max(LSTM.precision_score)]
+bestLSTM_H = LSTM_H.model_number[LSTM_H.precision_score == max(LSTM_H.precision_score)]
 
-# for averaging, saving models did not work. This is probably due to the custom lambda function we implemented for averaging
-# We run them again with optimal hyperparameters.
+bestFF_ = "FF/feedforward_embed" +str(bestFF.values[0]) +".hdf5"
+bestFF_H_ = "FF_H/feedforward_embed_hidden" +str(bestFF_H.values[0]) +".hdf5"
+bestLSTM_ = "LSTM/LSTM_1" +str(bestLSTM.values[0]) +".hdf5"
+bestLSTM_H_ = "LSTM_H/LSTM_hidden" +str(bestLSTM_H.values[0]) +".hdf5"
 
+best_performing_models = [bestFF_, bestFF_H_, bestLSTM_, bestLSTM_H_]
 
+prec_FF1 = load_and_test_network(best_performing_models[0], data_test, y_test)
+prec_FF2 = load_and_test_network(best_performing_models[1], data_test, y_test )
+prec_LSTM1 = load_and_test_network(best_performing_models[2], data_test, y_test)
+prec_LSTM2 = load_and_test_network(best_performing_models[3], data_test, y_test)
 
-embedding_average = custom_model_network(X_train.title, learning_rate=.001, embdim=50, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False)
-embedding_average_hidden = custom_model_network(X_train.title, learning_rate=.001, embdim=50, embreg=.00001, batchsize=4096, sentlength=16, hiddennodes=100, hiddenL1=.00001, hiddenlayer=False)
-
-# averaging no hidden layer
-preds_ea = embedding_average.model.predict_classes(data_test)
-probs_ea = embedding_average.model.predict(data_test)
-acc_ea = accuracy_score(y_test, preds_ea)
-confusion_ea = confusion_matrix(y_test, preds_ea)
-auc_ea = roc_auc_score(y_test, probs_ea)
-fpr_ea, tpr_ea, thresholds_ea = roc_curve(y_test, probs_ea)
-plot_roc_curve(fpr_ea, tpr_ea, auc_ea)
-
-# averaging + 1 hidden layer
-preds_eah = embedding_average_hidden.model.predict_classes(data_test)
-probs_eah = embedding_average_hidden.model.predict(data_test)
-acc_eah = accuracy_score(y_test, preds_eah)
-confusion_eah = confusion_matrix(y_test, preds_eah)
-auc_eah = roc_auc_score(y_test, probs_eah)
-fpr_eah, tpr_eah, thresholds_eah = roc_curve(y_test, probs_eah)
-plot_roc_curve(fpr_eah, tpr_eah, auc_eah)
-
-
-###########################################################
-###########################################################
-################### DATA DE MORGEN    #####################
-###########################################################
-###########################################################
-
-# read in the data from the saved datafile
-dat2 = pd.read_csv("DM_ML_data_final_NN_final.csv",  index_col=None)
-dat2.drop(['Unnamed: 0'], inplace=True, axis = 1)
-dat2.title = dat2.title.astype("str")
-dat2.subjectivity = dat2.subjectivity.astype("float64")
-dat2.polarity = dat2.polarity.astype("float64")
-dat2.title_lengths = dat2.title_lengths.astype("float64")
-###define cutoff
-cutoff_DM = dat2.views.median()
-
-features = [i for i in dat2.columns.values if i in ['title']]
-X_test_DM = dat2[features]
-y_test_dich_DM = [0 if i <= cutoff_DM else 1 for i in dat2['views']]
-y_test_DM = np.asarray(y_test_dich_DM)
-
-
-sequences_DM = tokenizer.texts_to_sequences(X_test_DM.title)
-word_index = tokenizer.word_index
-max_words = len(word_index)
-data_test_DM = pad_sequences(sequences_DM, maxlen=16, padding="post", truncating="post")
+print(prec_FF1, prec_FF2, prec_LSTM1, prec_LSTM2)
 
 
 
-load_and_test_network(best_performing_models[0], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[1], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[4], data_test_DM, y_test_DM)
-load_and_test_network(best_performing_models[5], data_test_DM, y_test_DM, plot=False)
-
-
-probs = embedding_average.model.predict(data_test_DM)
-preds = embedding_average.model.predict_classes(data_test_DM)
-acc = accuracy_score(y_test_DM, preds)
-print(acc)
-
-probs = embedding_average_hidden.model.predict(data_test_DM)
-preds = embedding_average_hidden.model.predict_classes(data_test_DM)
-acc = accuracy_score(y_test_DM, preds)
-print(acc)
+best = LSTM_H[LSTM_H.precision_score == max(LSTM_H.precision_score)]
+print(best.model_number)
 
 
 
 
+
+
+
+
+########################################################################################
+# best accuracy score
+bestFF = FF.model_number[FF.max_val_acc == max(FF.max_val_acc)]
+bestFF_H = FF_H.model_number[FF_H.max_val_acc == max(FF_H.max_val_acc)]
+bestLSTM = LSTM.model_number[LSTM.max_val_acc == max(LSTM.max_val_acc)]
+bestLSTM_H = LSTM_H.model_number[LSTM_H.max_val_acc == max(LSTM_H.max_val_acc)]
+
+bestFF_ = "FF/feedforward_embed" +str(bestFF.values[0]) +".hdf5"
+bestFF_H_ = "FF_H/feedforward_embed_hidden" +str(bestFF_H.values[0]) +".hdf5"
+bestLSTM_ = "LSTM/LSTM_1" +str(bestLSTM.values[0]) +".hdf5"
+bestLSTM_H_ = "LSTM_H/LSTM_hidden" +str(bestLSTM_H.values[0]) +".hdf5"
+
+
+best_performing_models = [bestFF_, bestFF_H_, bestLSTM_, bestLSTM_H_]
+
+prec_FF1_ac = load_and_test_network(best_performing_models[0], data_test, y_test)
+prec_FF2_ac = load_and_test_network(best_performing_models[1], data_test, y_test )
+prec_LSTM1_ac = load_and_test_network(best_performing_models[2], data_test, y_test)
+prec_LSTM2_ac = load_and_test_network(best_performing_models[3], data_test, y_test)
+
+print(prec_FF1_ac, prec_FF2_ac, prec_LSTM1_ac, prec_LSTM2_ac)
+
+
+
+
+# best validation loss score
+bestFF = FF.model_number[FF.val_loss_lowest == min(FF.val_loss_lowest)]
+bestFF_H = FF_H.model_number[FF_H.val_loss_lowest == min(FF_H.val_loss_lowest)]
+bestLSTM = LSTM.model_number[LSTM.val_loss_lowest == min(LSTM.val_loss_lowest)]
+bestLSTM_H = LSTM_H.model_number[LSTM_H.val_loss_lowest == min(LSTM_H.val_loss_lowest)]
+
+bestFF_ = "FF/feedforward_embed" +str(bestFF.values[0]) +".hdf5"
+bestFF_H_ = "FF_H/feedforward_embed_hidden" +str(bestFF_H.values[0]) +".hdf5"
+bestLSTM_ = "LSTM/LSTM_1" +str(bestLSTM.values[0]) +".hdf5"
+bestLSTM_H_ = "LSTM_H/LSTM_hidden" +str(bestLSTM_H.values[0]) +".hdf5"
+
+
+best_performing_models = [bestFF_, bestFF_H_, bestLSTM_, bestLSTM_H_]
+
+prec_FF1_loss = load_and_test_network(best_performing_models[0], data_test, y_test)
+prec_FF2_loss = load_and_test_network(best_performing_models[1], data_test, y_test )
+prec_LSTM1_loss = load_and_test_network(best_performing_models[2], data_test, y_test)
+prec_LSTM2_loss = load_and_test_network(best_performing_models[3], data_test, y_test)
+
+print(prec_FF1_loss, prec_FF2_loss, prec_LSTM1_loss, prec_LSTM2_loss)
+
+
+''' # custom precision function
 from keras import backend as K
 def precision_m(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
     precision = true_positives / (predicted_positives + K.epsilon())
     return precision
-
-
-
-type = 'feedforward_embed'
-startpoint = 0 # if some error occurs we can pick up where we left
-
-if type == 'feedforward_embed':
-    averaging = False
-    hidden_layer = False
-    LSTM_layer = False
-    param_grid = {'sentence_length': [14],
-                  'batchSize': [2 ** 13],
-                  'embedding_dimensions': [50],
-                  'embedding_regularization': [.0001],
-                  'learning-rate': [.001]
-                  }
-
-grid_full = list(ParameterGrid(param_grid))
-grid = grid_full[startpoint:]  # this allows us to continue if we left off somewhere
-
-'''
-
-'''
-sentence_length = 14
-batch_size = 8192
-regularization = .001
-output_d = 10
-opti = optimizers.rmsprop(lr=.0001)  # set optimizer and its learning rate
-data = pad_sequences(sequences, maxlen=sentence_length, padding="post", truncating="post")
-
-
-#################################################
-model = Sequential()
-model.add(Embedding(max_words + 1, output_dim=output_d, input_length=sentence_length,
-                    embeddings_regularizer=regularizers.l1(regularization)))
-model.add(Flatten())
-model.add(Dense(1, activation='sigmoid'))
-
-callback_list = [
-    callbacks.EarlyStopping(
-        monitor='val_loss', #'val_loss',
-        patience=50,
-        restore_best_weights=True
-    ),
-
-    callbacks.ModelCheckpoint(
-        filepath="test.hdf5",
-        monitor='val_loss',
-        save_best_only=True
-    ),
-
-    # as we use adagrad, this is not needed (??)
-    callbacks.ReduceLROnPlateau(
-        monitor='val_loss',
-        factor=.2,
-        patience=5
-    )
-]
-
-model.compile(optimizer=opti, loss='binary_crossentropy', metrics=['acc'])  # loss='binary_crossentropy'
-model.summary()
-
-history = model.fit(data, y_train,
-                    epochs=1500,
-                    batch_size=8192,
-                    callbacks=callback_list,
-                    validation_split=0.2)
-
-kak = load_model("test.hdf5")
-
-preds_kak = kak.predict_classes(data)
-preds_model = model.predict_classes(data)
-true = y_train
-precision_kak = precision_score(true, preds_kak)
-precision_model = precision_score(true, preds_model)
-
-print(precision_kak, precision_model)
 '''
