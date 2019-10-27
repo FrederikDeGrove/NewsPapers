@@ -59,51 +59,13 @@ def load_and_test_network(name_network, test_data_X, test_data_Y, plot=True):
     return acc, confusion
 
 
-def custom_model_network(input_data, learning_rate, embdim, embreg, batchsize,
-                         sentlength, hiddennodes, hiddenL1, hiddenlayer=False):
-    sequences = tokenizer.texts_to_sequences(input_data)
-    word_index = tokenizer.word_index
-    max_words = len(word_index)
-    data = pad_sequences(sequences, maxlen=sentlength, padding="post", truncating="post")
-    model = Sequential()
-    model.add(Embedding(max_words + 1, output_dim=embdim, input_length=sentlength,
-                        embeddings_regularizer=regularizers.l1(embreg)))
-    model.add(keras.layers.Lambda(lambda x: keras.backend.mean(x, axis=1)))
-    if hiddenlayer:
-        model.add(Dense(hiddennodes, activation='relu', kernel_regularizer=regularizers.l1(hiddenL1)))
-    model.add(Dense(1, activation='sigmoid'))
-
-    callback_list = [
-        callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=10,
-            restore_best_weights=True
-        ),
-
-
-        callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=.2,
-            patience=5
-        )
-    ]
-    model.compile(optimizer=optimizers.rmsprop(lr=learning_rate), loss='binary_crossentropy', metrics=['acc'])
-
-    history = model.fit(data, y_train,
-                        epochs=1500,
-                        batch_size=batchsize,
-                        callbacks=callback_list,
-                        validation_split=0.2)
-    return history
-
-
 ###########################################################
 ###########################################################
 ################### DATA PREPARATION  #####################
 ###########################################################
 ###########################################################
 
-#dat = pd.read_csv("raw_HLN.csv", index_col = None)
+
 dat = pd.read_csv("HLN_ML_data_final_NN_final_laptop.csv", index_col=None)
 
 dat.drop(['Unnamed: 0'], inplace=True, axis=1)
@@ -369,8 +331,8 @@ if run_networks:
     network_types = ['feedforward_embed', 'feedforward_embed_hidden', 'LSTM_1', 'LSTM_hidden']
     #for type in network_types:
     #    neural_net_analysis(type, startpoint=)
-neural_net_analysis('LSTM_1', startpoint=56)
-neural_net_analysis('LSTM_hidden', startpoint=0)
+#neural_net_analysis('LSTM_1', startpoint=56)
+neural_net_analysis('LSTM_hidden', startpoint=164)
 
 '''
 ###########################################################
