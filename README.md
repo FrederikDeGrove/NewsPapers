@@ -1,8 +1,6 @@
 #
 
-This repository is part of my master dissertation for the Master in Statistical Data Analysis.
-
-It contains the following files:
+This repository the following files:
 
 - data_preprocessing: all preprocessing steps performed on the raw datafiles.
 - descriptive: all descriptive analyses found in the MP.
