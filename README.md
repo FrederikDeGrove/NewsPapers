@@ -1,6 +1,6 @@
 #
 
-This repository the following files:
+This repository contains the following files:
 
 - data_preprocessing: all preprocessing steps performed on the raw datafiles.
 - descriptive: all descriptive analyses found in the MP.
